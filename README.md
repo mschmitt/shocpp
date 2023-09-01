@@ -13,7 +13,7 @@ Provide a customizable, reasonably self-hostable OCPP service that ignores the h
 ## Scope
 
 - Allow charging initiated by (RF)ID tag presentation (Active *Authorize/StartTransaction* calls from the charger).
-- Allow charging initiated by the service (*RemoteStartTransaction* call to the charger with and (RF)ID tag to be assumed as presented).
+- Allow charging initiated by the service (*RemoteStartTransaction* call to the charger with an (RF)ID tag to be assumed as presented).
 - Keep track of power consumption on a per-account basis. (RF)ID tags are assigned to accounts.
 
 ## Limitations

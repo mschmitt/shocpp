@@ -48,7 +48,7 @@ function writelog() {
 		# If stderr is a terminal
 		printf "%(%Y-%m-%d %H:%M:%S)T %-10s: %s\n" -1 "${logprefix}" "${logmsg}" >&2
 	fi
-	printf "%(%Y-%m-%d %H:%M:%S)T %-10s: %s\n" -1 "${logprefix}" "${logmsg}" | rotatelogs -n 10 "${logdir}/log" 86400
+	printf "%(%Y-%m-%d %H:%M:%S)T %-10s: %s\n" -1 "${logprefix}" "${logmsg}" >> "${logdir}/log"
 }
 
 function returnResult() {
