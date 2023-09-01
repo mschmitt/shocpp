@@ -98,12 +98,10 @@ function consumptionFromTransId() {
 	local idindex=$(( tid / 10000000 ))
 	writelog "Status" "Transaction ${tid} split into idindex ${idindex} and meterstart ${meterstart}"
 	local idtag
-	local iddesc
-	idtag="$(jq -e -r '.[] | select (.index == $i) | .id' --argjson i "${idindex}" < "${tagsfile}")"
-	iddesc="$(jq -e -r '.[] | select (.index == $i) | .desc' --argjson i "${idindex}" < "${tagsfile}")"
+	idaccount="$(jq -e -r '.[] | select (.index == $i) | .account' --argjson i "${idindex}" < "${tagsfile}")"
 	local whconsumed=$(( meterstop - meterstart ))
-	jq -c -n '{"tag": $i, "desc": $d, "startwh": $b, "stopwh": $e, "consumed": $c}' \
-		--arg i "${idtag}" --arg d "${iddesc}" --arg b "${meterstart}" --arg e "${meterstop}" --arg c "${whconsumed}"
+	jq -c -n '{"account": $a, "begin_wh": $b, "end_wh": $e, "consumed_wh": $c}' \
+		--arg a "${idaccount}" --arg b "${meterstart}" --arg e "${meterstop}" --arg c "${whconsumed}"
 }
 
 # Check for bash version specific functionality
@@ -153,7 +151,7 @@ do
 		call="$(jq -r '.[2]' <<< "${received}")"
 		payload="$(jq '.[3]' <<< "${received}")"
 	else 
-		# Confirmation from charger (to our request), no call id, payload in field 2
+		# Confirmation from charger (to a request of ours), no call id, payload in field 2
 		call='none'
 		payload="$(jq '.[2]' <<< "${received}")"
 	fi
@@ -161,13 +159,13 @@ do
 	authresult='Rejected'
 	if idtag="$(jq -e -r '.idTag' <<< "${payload}")"
 	then
-		if desc="$(jq -e -r '.[] | select (.id == $got_id) | .desc' --arg got_id "${idtag}" < "${tagsfile}")"
+		if account="$(jq -e -r '.[] | select (.ids[] == $got_id) | .account' --arg got_id "${idtag}" < "${tagsfile}")"
 		then
 			authresult='Accepted'
-			idindex="$(jq -e -r '.[] | select (.id == $got_id) | .index' --arg got_id "${idtag}" < "${tagsfile}")"
-			writelog "Early-Auth" "Will accept tag ${idtag} (${desc}, index ${idindex})."
+			idindex="$(jq -e -r '.[] | select (.ids[] == $got_id) | .index' --arg got_id "${idtag}" < "${tagsfile}")"
+			writelog "Early-Auth" "Will accept (RF)ID tag ${idtag} (account=${account}, index=${idindex})."
 		else
-			writelog "Early-Auth" "Will reject tag ${idtag}."
+			writelog "Early-Auth" "Will reject (RF)ID tag ${idtag}."
 		fi
 	fi
 	case "${call}" in

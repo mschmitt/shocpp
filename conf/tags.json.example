@@ -1,6 +1,29 @@
 [
 	{
-		"id": "a79b1b44adfe70",
-		"desc": "A test tag"
+		"index": 1,
+		"account": "company-x",
+		"ids": [
+			"1111",
+			"2222"
+		]
+	},
+	{
+		"index": 2,
+		"account": "family-y",
+		"ids": [
+			"3333",
+			"4444"
+		]
+	},
+	{
+		"index": 3,
+		"account": "company-z",
+		"ids": [
+			"5555",
+			"6666",
+			"7777",
+			"8888",
+			"9999"
+		]
 	}
 ]
