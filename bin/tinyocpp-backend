@@ -1,0 +1,156 @@
+#!/usr/bin/env bash
+set -o errexit
+
+me_path="$(readlink -f "$0")"
+me_dir="$(dirname "${me_path}")"
+me_base="$(basename "${me_path}")"
+
+# Check for misc. dependencies
+for dep in jq rotatelogs
+do
+	if ! type "${dep}" >/dev/null
+	then
+		printf "Dependency missing: %s\n" "${dep}" >&2
+		depsmissing=1
+	fi
+done
+[[ -v depsmissing ]] && exit 1
+
+# Usually 55, reduce for testing
+heartbeatInterval=10
+
+# JSON array with known tags
+tagsfile="${me_dir}/../conf/tags.json"
+
+# Misc paths and dirs
+logdir="${me_dir}/../log"
+[[ -d "${logdir}" ]] || mkdir -p "${logdir}"
+rundir="${me_dir}/../run"
+[[ -d "${rundir}" ]] || mkdir -p "${rundir}"
+cmdfile="${rundir}/cmd.json"
+writelock="${rundir}/writelock"
+touch "${writelock}"
+pidfile="${rundir}/tinyocpp.pid"
+echo "${$}" > "${pidfile}"
+
+function errorexit() {
+	trap - ERR
+	printf "Error on line %s\n" "$(caller)" >&2
+	exit 1
+}
+trap errorexit ERR
+
+function cleanup(){
+	trap - INT QUIT TERM EXIT
+}
+trap cleanup INT QUIT TERM EXIT
+
+function writelog() {
+	local logprefix="${1}"
+	local logmsg="${2}"
+	printf "%(%Y-%m-%d %H:%M:%S)T %-10s: %s\n" -1 "${logprefix}" "${logmsg}" | rotatelogs -n 10 "${logdir}/log" 86400
+}
+
+function returnResult() {
+	local msgid="${1}"
+	local payload="${2}"
+	result="$(jq -c -n '[3, $msgid, $payload]' --arg msgid "${msgid}" --argjson payload "${payload}")"
+	writelog "Sent" "${result}"
+	# Lock for safe interaction with sendRequest
+	flock "${writelock}" printf "%s\n" "${result}"
+}
+
+function sendRequest() {
+	local message
+	message="$(cat "${cmdfile}")"
+	writelog "Sent" "${message}"
+	# Lock for safe interaction with returnResult
+	flock "${writelock}" printf "%s\n" "${message}"
+}
+trap sendRequest USR1
+
+function datetime() {
+	TZ=UTC printf "%(%Y-%m-%dT%H:%M:%S.000Z)T" -1
+}
+
+while read -r received
+do
+	writelog "Received" "${received}"
+	unset msgtype msgid call payload authresult idtag
+	# ocpp-j-1.6-specification.pdf describes the message format
+	# Field 0, Message type:
+	#   Type 2: Request
+	#   Type 3: Confirmation
+	msgtype="$(jq -r '.[0]' <<< "${received}")"
+	# Field 1, unique request ID:
+	msgid="$(jq -r '.[1]' <<< "${received}")"
+	# Identify call ID and payload
+	if [[ ${msgtype} -eq 2 ]]
+	then
+		# Request from charger, call in field 2, payload in field 3
+		call="$(jq -r '.[2]' <<< "${received}")"
+		payload="$(jq '.[3]' <<< "${received}")"
+	else 
+		# Confirmation from charger (to our request), no call id, payload in field 2
+		call='none'
+		payload="$(jq '.[2]' <<< "${received}")"
+	fi
+	# If there's an idTag field in the payload, figure out if it's authorized
+	authresult='Rejected'
+	if idtag="$(jq -e -r '.idTag' <<< "${payload}")"
+	then
+		if desc="$(jq -e -r '.[] | select (.id == $got_id) | .desc' --arg got_id "${idtag}" < "${tagsfile}")"
+		then
+			authresult='Accepted'
+			writelog "Early-Auth" "Will accept tag ${idtag} (${desc})."
+		else
+			writelog "Early-Auth" "Will reject tag ${idtag}."
+		fi
+	fi
+	case "${call}" in
+		"BootNotification")
+			writelog "Status" "Handling BootNotification"
+			# Always accept with the required fields
+			returnResult "${msgid}" "{\"currentTime\": \"$(datetime)\", \"interval\": ${heartbeatInterval}, \"status\": \"Accepted\"}"
+			;;
+		"StatusNotification")
+			writelog "Status" "Handling StatusNotification"
+			# Always respond with empty payload
+			returnResult "${msgid}" "{}"
+			;;
+		"Heartbeat")
+			writelog "Status" "Handling Heartbeat"
+			# Always respond with timestamp
+			returnResult "${msgid}" "{\"currentTime\": \"$(datetime)\"}"
+			;;
+		"Authorize")
+			writelog "Status" "Handling Authorize"
+			# Accept or reject with result from early-auth
+			returnResult "${msgid}" "{\"idTagInfo\": {\"status\": \"$authresult\"}}"
+			;;
+		"StartTransaction")
+			writelog "Status" "Handling StartTransaction"
+			# Keep track of start parameters
+			unset meterstart timestamp
+			meterstart="$(jq -r '.meterStart' <<< "${payload}")"
+			timestamp="$(jq -r '.timestamp' <<< "${payload}")"
+			# Accept or reject with result from early-auth, assign a transaction ID
+			returnResult "${msgid}" "{\"idTagInfo\": {\"status\": \"$authresult\"}, \"transactionId\": \""$(date +%s)"\"}"
+			;;
+		"StopTransaction")
+			writelog "Status" "Handling StopTransaction"
+			# Keep track of final transaction parameters
+			# Todo: Match to StartTransaction transactionId, keep track of tag and meter reading
+			unset meterstop timestamp
+			meterstop="$(jq -r '.meterStop' <<< "${payload}")"
+			timestamp="$(jq -r '.timestamp' <<< "${payload}")"
+			returnResult "${msgid}" "{}"
+			;;
+		"none")
+			writelog "Status" "Ignoring confirmation from charger"
+			;;
+		*)
+			writelog "Unknown:" "${call}"
+			;;
+	esac
+done

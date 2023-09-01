@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+set -o errexit
+
+me_path="$(readlink -f "$0")"
+me_dir="$(dirname "${me_path}")"
+me_base="$(basename "${me_path}")"
+
+# Check for misc. dependencies
+for dep in uuid
+do
+	if ! type "${dep}" >/dev/null
+	then
+		printf "Dependency missing: %s\n" "${dep}" >&2
+		depsmissing=1
+	fi
+done
+[[ -v depsmissing ]] && exit 1
+
+function errorexit() {
+	trap - ERR
+	printf "Error on line %s\n" "$(caller)"
+	exit 1
+}
+trap errorexit ERR
+
+cmdfile="${me_dir}/../run/cmd.json"
+pidfile="${me_dir}/../run/tinyocpp.pid"
+
+printf "[2, \"%s\", \"%s\", %s]\n" "$(uuid)" "${1}" "${2}" > "${cmdfile}"
+kill -USR1 "$(cat "${pidfile}")"

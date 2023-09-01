@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -o errexit
+
+me_path="$(readlink -f "$0")"
+me_dir="$(dirname "${me_path}")"
+me_base="$(basename "${me_path}")"
+
+function errorexit() {
+	trap - ERR
+	printf "Error on line %s\n" "$(caller)"
+	exit 1
+}
+trap errorexit ERR
+
+exec websocketd --port=9220 "${me_dir}/tinyocpp-backend"
