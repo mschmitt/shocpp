@@ -2,29 +2,25 @@
 
 A rudimentary implementation of OCPP, the Open Charge Point Protocol, Version 1.6
 
-------
-
 ## Status
 
 Experimental: Still switching off OCPP to fall back to the charger's internal RFID accounting when I'm done testing.
 
 ## Goal
 
-Provide a customizable, reasonably self-hostable OCPP service that ignores the high-scalability complexity of existing implementations.
+Provide a customizable, reasonably self-hostable OCPP service that ignores the high-scalability and security of existing implementations.
 
 ## Scope
 
-- 1 charger will talk to 1 dedicated *tinyocpp* service.
-- Allow charging initiated by RFID token presentation (Active *Authorize/StartTransaction* calls from the charger).
-- Allow charging initiated by the service (*RemoteStartTransaction* call to the charger).
-- Keep track of power consumption per ID.
+- Allow charging initiated by (RF)ID tag presentation (Active *Authorize/StartTransaction* calls from the charger).
+- Allow charging initiated by the service (*RemoteStartTransaction* call to the charger with and (RF)ID tag to be assumed as presented).
+- Keep track of power consumption on a per-account basis. (RF)ID tags are assigned to accounts.
 
 ## Limitations
 
-- No authentication of charger.
-- No encryption.
-- Supports only one charger, so no load sharing.
-- Scaling out to multiple chargers by running multiple instances on multiple ports should be possible.
+- No authentication of charger, but can be added on a reverse proxy level.
+- No encryption, but can be added on a reverse proxy level.
+- Operation with more than one charger was never tested, but should be possible due to the stateless operation model.
 
 ## Architecture
 
@@ -34,10 +30,55 @@ Provide a customizable, reasonably self-hostable OCPP service that ignores the h
 
 ## Configuration
 
-- Listen address via the *WS_ADDRESS* environment (default: empty, listen on all interfaces).
+- Listen address via the *WS_ADDRESS* environment (default: *0.0.0.0*, listen on all interfaces).
 - Listen port via the *WS_PORT* environment (default: *8080*).
 - Path to *tags.json* via *TINYOCPP_TAGSFILE* environment (default: *conf/tags.json,* parallel to tinyocpp's *bin/* directory)
 - Path to Accounting directory via *TINYOCPP_ACCOUNTINGDIR* environment (default: *accounting/*, parallel to tinyocpp's *bin/* directory)
+
+## tags.json
+
+*tags.json* is a list of accounts, to which ID tags for the charger are assigned.
+
+```json
+[
+  {
+    "index": 1,
+    "account": "company-x",
+    "ids": [
+      "1111",
+      "2222"
+    ]
+  },
+  {
+    "index": 2,
+    "account": "family-y",
+    "ids": [
+      "3333",
+      "4444"
+    ]
+  },
+  {
+    "index": 3,
+    "account": "company-z",
+    "ids": [
+      "5555",
+      "6666",
+      "7777",
+      "8888",
+      "9999"
+    ]
+  }
+]
+```
+
+## Transaction ID model
+
+*tinyocpp* keeps no state, but offloads state into the Transaction ID:
+
+- *Rumor has it* that transaction IDs are signed Int32, so max transaction ID is *2.147.483.647*.
+- The account ID from *tags.json* for a given (RF)ID tag is multiplied x 10000000. The meter reading at start is added to it. This number is the Transaction ID.
+- On end of transaction, the transaction ID transmitted by the charger is disassembled back into account ID and meter reading at start, based on which the consumption is calculated.
+- Yes, tinyocpp can serve only up to 214 accounts, but many more (RF)ID tags.
 
 ## *tinyocpp-command* examples
 
