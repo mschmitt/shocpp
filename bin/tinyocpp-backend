@@ -5,22 +5,15 @@ me_path="$(readlink -f "$0")"
 me_dir="$(dirname "${me_path}")"
 me_base="$(basename "${me_path}")"
 
-# Check for misc. dependencies
-for dep in jq rotatelogs
-do
-	if ! type "${dep}" >/dev/null
-	then
-		printf "Dependency missing: %s\n" "${dep}" >&2
-		depsmissing=1
-	fi
-done
-[[ -v depsmissing ]] && exit 1
-
 # Usually 55, reduce for testing
 heartbeatInterval=55
 
 # File contains JSON array with known tags
 tagsfile="${TINYOCPP_TAGSFILE:-${me_dir}/../conf/tags.json}"
+
+# Directory where accounting information will be written
+accountingdir="${TINYOCPP_ACCOUNTDINGDIR:-${me_dir}/../accounting}"
+[[ -d "${accountingdir}" ]] || mkdir -p "${accountingdir}"
 
 # Misc paths and dirs
 logdir="${me_dir}/../log"
@@ -42,20 +35,24 @@ trap errorexit ERR
 
 function cleanup(){
 	trap - INT QUIT TERM EXIT
+	writelog "Status" "Exiting cleanly"
+	exit
 }
 trap cleanup INT QUIT TERM EXIT
 
 function writelog() {
 	local logprefix="${1}"
 	local logmsg="${2}"
-	if [[ -t 0 ]]
+	if [[ -t 2 ]]
 	then
+		# If stderr is a terminal
 		printf "%(%Y-%m-%d %H:%M:%S)T %-10s: %s\n" -1 "${logprefix}" "${logmsg}" >&2
 	fi
 	printf "%(%Y-%m-%d %H:%M:%S)T %-10s: %s\n" -1 "${logprefix}" "${logmsg}" | rotatelogs -n 10 "${logdir}/log" 86400
 }
 
 function returnResult() {
+	# Return a result (confirmation) to the charger
 	local msgid="${1}"
 	local payload="${2}"
 	result="$(jq -c -n '[3, $msgid, $payload]' --arg msgid "${msgid}" --argjson payload "${payload}")"
@@ -65,6 +62,7 @@ function returnResult() {
 }
 
 function sendRequest() {
+	# Send a request to the charger
 	local message
 	message="$(cat "${cmdfile}")"
 	writelog "Sent" "${message}"
@@ -77,6 +75,55 @@ function datetime() {
 	TZ=UTC printf "%(%Y-%m-%dT%H:%M:%S.000Z)T" -1
 }
 
+function transIdFromIdIndexAndMeterStart() {
+	# Persist idtoken and transaction start information in the transaction id
+	# Transaction id is signed 32 bit int, max 2 147 483 647
+	# Place the idtoken internal index in the upper 3 digits (max. 214 or so)
+	local idindex="${1}"
+	local meterstart="${2}"
+	local upper=$(( idindex * 10000000 ))
+	# Place the meter start value in the lower 7 digits
+	local tid=$(( upper + meterstart))
+	echo "${tid}"
+}
+
+function consumptionFromTransId() {
+	# Transaction is done, gather all relevant data for it
+	# Remember:
+	# - tid % 10000000 = meter reading at start
+	# - int(tid / 10000000) = idtoken index from tokens.json (bash only maths int)
+	local tid="${1}"
+	local meterstop="${2}"
+	local meterstart=$(( tid % 10000000))
+	local idindex=$(( tid / 10000000 ))
+	writelog "Status" "Transaction ${tid} split into idindex ${idindex} and meterstart ${meterstart}"
+	local idtag
+	local iddesc
+	idtag="$(jq -e -r '.[] | select (.index == $i) | .id' --argjson i "${idindex}" < "${tagsfile}")"
+	iddesc="$(jq -e -r '.[] | select (.index == $i) | .desc' --argjson i "${idindex}" < "${tagsfile}")"
+	local whconsumed=$(( meterstop - meterstart ))
+	jq -c -n '{"tag": $i, "desc": $d, "startwh": $b, "stopwh": $e, "consumed": $c}' \
+		--arg i "${idtag}" --arg d "${iddesc}" --arg b "${meterstart}" --arg e "${meterstop}" --arg c "${whconsumed}"
+}
+
+# Check for bash version specific functionality
+if [[ ! -v SRANDOM ]] 
+then
+	writelog "ERROR" "Bash 5.1 with SRANDOM support is required."
+	exit
+fi
+
+# Check for misc. dependencies
+for dep in jq rotatelogs
+do
+	if ! type "${dep}" >/dev/null
+	then
+		writelog "ERROR" "Dependency missing: ${dep}"
+		depsmissing=1
+	fi
+done
+[[ -v depsmissing ]] && exit
+
 writelog "Status" "Starting up"
 tagsfile="$(readlink -f "${tagsfile}")"
 if jq -e . < "${tagsfile}" >/dev/null 2>&1
@@ -84,13 +131,14 @@ then
 	writelog "Status" "${tagsfile} is valid JSON."
 else
 	writelog "ERROR" "${tagsfile} is NOT valid JSON. Exiting."
-	exit 1
+	exit
 fi
 
+writelog "Status" "Ready to serve requests, process id is ${$}"
 while read -r received
 do
 	writelog "Received" "${received}"
-	unset msgtype msgid call payload authresult idtag
+	unset msgtype msgid call payload authresult idtag idindex
 	# ocpp-j-1.6-specification.pdf describes the message format
 	# Field 0, Message type:
 	#   Type 2: Request
@@ -116,7 +164,8 @@ do
 		if desc="$(jq -e -r '.[] | select (.id == $got_id) | .desc' --arg got_id "${idtag}" < "${tagsfile}")"
 		then
 			authresult='Accepted'
-			writelog "Early-Auth" "Will accept tag ${idtag} (${desc})."
+			idindex="$(jq -e -r '.[] | select (.id == $got_id) | .index' --arg got_id "${idtag}" < "${tagsfile}")"
+			writelog "Early-Auth" "Will accept tag ${idtag} (${desc}, index ${idindex})."
 		else
 			writelog "Early-Auth" "Will reject tag ${idtag}."
 		fi
@@ -145,20 +194,25 @@ do
 		"StartTransaction")
 			writelog "Status" "Handling StartTransaction"
 			# Keep track of start parameters
-			unset meterstart timestamp
+			unset meterstart timestamp tid
 			meterstart="$(jq -r '.meterStart' <<< "${payload}")"
 			timestamp="$(jq -r '.timestamp' <<< "${payload}")"
-			# Accept or reject with result from early-auth, assign a transaction ID
-			returnResult "${msgid}" "{\"idTagInfo\": {\"status\": \"$authresult\"}, \"transactionId\": \""$(date +%s)"\"}"
+			tid="$(transIdFromIdIndexAndMeterStart "${idindex}" "${meterstart}")"
+			writelog "Status" "Transaction ID: ${tid}"
+			# Accept or reject with result from early-auth, return transaction ID
+			returnResult "${msgid}" "{\"idTagInfo\": {\"status\": \"${authresult}\"}, \"transactionId\": ${tid}}"
 			;;
 		"StopTransaction")
 			writelog "Status" "Handling StopTransaction"
-			# Keep track of final transaction parameters
-			# Todo: Match to StartTransaction transactionId, keep track of tag and meter reading
-			unset meterstop timestamp
+			# Extract final transaction parameters for accounting
+			unset meterstop timestamp tid accountingdata
 			meterstop="$(jq -r '.meterStop' <<< "${payload}")"
 			timestamp="$(jq -r '.timestamp' <<< "${payload}")"
+			tid="$(jq -r '.transactionId' <<< "${payload}")"
 			returnResult "${msgid}" "{}"
+			accountingdata="$(consumptionFromTransId "${tid}" "${meterstop}")"
+			writelog "Accounting" "${accountingdata}"
+			# Todo: Persist and report
 			;;
 		"none")
 			writelog "Status" "Ignoring confirmation from charger"

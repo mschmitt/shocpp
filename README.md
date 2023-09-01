@@ -4,13 +4,13 @@ A rudimentary implementation of OCPP, the Open Charge Point Protocol, Version 1.
 
 ------
 
-**Status: Work in Progress**
+## Status
 
-------
+Experimental: Still switching off OCPP to fall back to the charger's internal RFID accounting when I'm done testing.
 
 ## Goal
 
-Provide a customizable, easily self-hostable OCPP service that ignores the high-scalability complexity of existing implementations.
+Provide a customizable, reasonably self-hostable OCPP service that ignores the high-scalability complexity of existing implementations.
 
 ## Scope
 
@@ -23,7 +23,8 @@ Provide a customizable, easily self-hostable OCPP service that ignores the high-
 
 - No authentication of charger.
 - No encryption.
-- There is no argument against scaling out to multiple chargers by running multiple instances. 
+- Supports only one charger, so no load sharing.
+- Scaling out to multiple chargers by running multiple instances on multiple ports should be possible.
 
 ## Architecture
 
@@ -40,7 +41,11 @@ Provide a customizable, easily self-hostable OCPP service that ignores the high-
 
 ## *tinyocpp-command* examples
 
-Syntax is: tinyocpp-command &lt;Call&gt; &lt;JSON Payload (the "inner" JSON) for call&gt;
+Synopsis:
+
+`tinyocpp-command <Call> <JSON Payload (the "inner" JSON) for call>`
+
+Examples:
 
 `bin/tinyocpp-command "RemoteStartTransaction" '{"idTag":"00000000"}'`
 `bin/tinyocpp-command "Reset" '{"type":"Soft"}'`
@@ -52,10 +57,16 @@ Sourced from: https://osqa-ask.wireshark.org/questions/60725/how-to-dump-websock
 
 `tshark -p -i any -s0 -f 'port 8080' -Y websocket.payload -E occurrence=l -T fields -e ip.src -e ip.dst -e text`
 
+## TODO
+
+- Specify and implement accounting including periodic reports.
+- Systemd unit.
+- Something about the exit/cleanup trap is not quite right. (Ctrl+C, error exits, something something)
+
 ## Future TODOs
 
 - Implement more functionality:
-  - Collect status data (I honestly don't care about Grafana dashboards, never have).
+  - Collect status data.
   - Power level and phase switching, solar integration.
 
 ## Further reading
