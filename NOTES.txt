@@ -1,5 +1,0 @@
-tshark -p -i any -s0 -f 'port 9220' -Y websocket.payload -E occurrence=l -T fields -e ip.src -e ip.dst -e text
-
-bin/tinyocpp-command "RemoteStartTransaction" '{"idTag":"00000000"}'
-bin/tinyocpp-command "Reset" '{"type":"Soft"}'
-bin/tinyocpp-command "Reset" '{"type":"Hard"}'
