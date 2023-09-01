@@ -47,9 +47,11 @@ Synopsis:
 
 Examples:
 
-`bin/tinyocpp-command "RemoteStartTransaction" '{"idTag":"00000000"}'`
-`bin/tinyocpp-command "Reset" '{"type":"Soft"}'`
-`bin/tinyocpp-command "Reset" '{"type":"Hard"}'`
+```
+bin/tinyocpp-command "RemoteStartTransaction" '{"idTag":"00000000"}'
+bin/tinyocpp-command "Reset" '{"type":"Soft"}'`
+bin/tinyocpp-command "Reset" '{"type":"Hard"}'`
+```
 
 ## HOWTO sniff OCPP traffic
 

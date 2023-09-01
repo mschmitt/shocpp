@@ -76,24 +76,24 @@ function datetime() {
 }
 
 function transIdFromIdIndexAndMeterStart() {
-	# Persist idtoken and transaction start information in the transaction id
+	# Persist idtoken and meter start information in the transaction id
 	# Transaction id is signed 32 bit int, max 2 147 483 647
 	# Place the idtoken internal index in the upper 3 digits (max. 214 or so)
+	# Place the meter start value in the lower 7 digits
 	local idindex="${1}"
 	local meterstart="${2}"
 	local upper=$(( idindex * 10000000 ))
-	# Place the meter start value in the lower 7 digits
 	local tid=$(( upper + meterstart))
 	echo "${tid}"
 }
 
 function consumptionFromTransId() {
-	# Transaction is done, gather all relevant data for it
+	# Transaction is done, round up all relevant data for it
+	local tid="${1}"
+	local meterstop="${2}"
 	# Remember:
 	# - tid % 10000000 = meter reading at start
 	# - int(tid / 10000000) = idtoken index from tokens.json (bash only maths int)
-	local tid="${1}"
-	local meterstop="${2}"
 	local meterstart=$(( tid % 10000000))
 	local idindex=$(( tid / 10000000 ))
 	writelog "Status" "Transaction ${tid} split into idindex ${idindex} and meterstart ${meterstart}"
