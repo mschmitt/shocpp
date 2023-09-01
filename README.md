@@ -21,13 +21,22 @@ Provide a customizable, easily self-hostable OCPP service that ignores the high-
 
 ## Limitations
 
-- There is no argument against scaling out to multiple chargers by running multiple instances. However, no infrastructure is in place for shared storage of authentication and accounting data, and paths and ports are not configurable so far.
+- No authentication of charger.
+- No encryption.
+- There is no argument against scaling out to multiple chargers by running multiple instances. 
 
 ## Architecture
 
 - *tinyocpp-backend* implements the entire logic and communicates via stdin/stdout, as known from inetd/xinetd/cgi-bin.
 - *tinyocpp-listener* wraps *tinyocpp-backend* behind *websocketd*.
 - *tinyocpp-command* passes payloads to *tinyocpp-backend*, to be sent to the charger.
+
+## Configuration
+
+- Listen address via the *WS_ADDRESS* environment (default: empty, listen on all interfaces).
+- Listen port via the *WS_PORT* environment (default: *8080*).
+- Path to *tags.json* via *TINYOCPP_TAGSFILE* environment (default: *conf/tags.json,* parallel to tinyocpp's *bin/* directory)
+- Path to Accounting directory via *TINYOCPP_ACCOUNTINGDIR* environment (default: *accounting/*, parallel to tinyocpp's *bin/* directory)
 
 ## *tinyocpp-command* examples
 
@@ -41,19 +50,9 @@ Syntax is: tinyocpp-command &lt;Call&gt; &lt;JSON Payload (the "inner" JSON) for
 
 Sourced from: https://osqa-ask.wireshark.org/questions/60725/how-to-dump-websockets-live-with-tshark/
 
-`tshark -p -i any -s0 -f 'port 9220' -Y websocket.payload -E occurrence=l -T fields -e ip.src -e ip.dst -e text`
+`tshark -p -i any -s0 -f 'port 8080' -Y websocket.payload -E occurrence=l -T fields -e ip.src -e ip.dst -e text`
 
-## TODOs before completion
-
-- Implement accounting with storage in file system.
-- Move away from Port 9220, which was carried over from the OCPP implementation for ioBroker.
-- Introduce configuration file:
-  - Listener Port
-  - Paths:
-    - Allowed tags
-    - Accounting data
-
-## Community TODOs
+## Future TODOs
 
 - Implement more functionality:
   - Collect status data (I honestly don't care about Grafana dashboards, never have).

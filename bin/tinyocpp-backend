@@ -17,10 +17,10 @@ done
 [[ -v depsmissing ]] && exit 1
 
 # Usually 55, reduce for testing
-heartbeatInterval=10
+heartbeatInterval=55
 
-# JSON array with known tags
-tagsfile="${me_dir}/../conf/tags.json"
+# File contains JSON array with known tags
+tagsfile="${TINYOCPP_TAGSFILE:-${me_dir}/../conf/tags.json}"
 
 # Misc paths and dirs
 logdir="${me_dir}/../log"
@@ -48,6 +48,10 @@ trap cleanup INT QUIT TERM EXIT
 function writelog() {
 	local logprefix="${1}"
 	local logmsg="${2}"
+	if [[ -t 0 ]]
+	then
+		printf "%(%Y-%m-%d %H:%M:%S)T %-10s: %s\n" -1 "${logprefix}" "${logmsg}" >&2
+	fi
 	printf "%(%Y-%m-%d %H:%M:%S)T %-10s: %s\n" -1 "${logprefix}" "${logmsg}" | rotatelogs -n 10 "${logdir}/log" 86400
 }
 
@@ -72,6 +76,16 @@ trap sendRequest USR1
 function datetime() {
 	TZ=UTC printf "%(%Y-%m-%dT%H:%M:%S.000Z)T" -1
 }
+
+writelog "Status" "Starting up"
+tagsfile="$(readlink -f "${tagsfile}")"
+if jq -e . < "${tagsfile}" >/dev/null 2>&1
+then
+	writelog "Status" "${tagsfile} is valid JSON."
+else
+	writelog "ERROR" "${tagsfile} is NOT valid JSON. Exiting."
+	exit 1
+fi
 
 while read -r received
 do
