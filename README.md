@@ -8,7 +8,7 @@ Experimental: Still switching off OCPP to fall back to the charger's internal RF
 
 ## Goal
 
-Provide a customizable, reasonably self-hostable OCPP service that ignores the high-scalability and security of existing implementations.
+Provide a customizable private OCPP service that ignores the public-infrastructure scalability and security of most other implementations.
 
 ## Scope
 
@@ -78,7 +78,7 @@ Provide a customizable, reasonably self-hostable OCPP service that ignores the h
 - *Rumor has it* that transaction IDs are signed Int32, so max transaction ID is *2.147.483.647*.
 - The account ID from *tags.json* for a given (RF)ID tag is multiplied x 10000000. The meter reading at start is added to it. This number is the Transaction ID.
 - On end of transaction, the transaction ID transmitted by the charger is disassembled back into account ID and meter reading at start, based on which the consumption is calculated.
-- Yes, tinyocpp can serve only up to 214 accounts, but many more (RF)ID tags.
+- By this calculation, tinyocpp can only serve up to 214 accounts, but infinite™ (RF)ID tags.
 
 ## *tinyocpp-command* examples
 
@@ -102,15 +102,23 @@ Sourced from: https://osqa-ask.wireshark.org/questions/60725/how-to-dump-websock
 
 ## TODO
 
-- Specify and implement accounting including periodic reports.
+- Specify and implement accounting.
+- Collect meter data, maybe always after *StopTransaction*, add to accounting output.
 - Systemd unit.
-- Something about the exit/cleanup trap is not quite right. (Ctrl+C, error exits, something something)
+- Something about error/exit/cleanup trap is not quite right. (Better ignore some errors and keep going, Ctrl+C, something something)
 
 ## Future TODOs
 
 - Implement more functionality:
-  - Collect status data.
   - Power level and phase switching, solar integration.
+
+## OCPP observations on go-eCharger Gemini
+
+- Reconnect and reboot behaviour
+  - If the charger reconnects after loss of the websocket connection, it checks back in with a *BootNotification*.
+  - If the charger ends a transaction while the websocket connection is not available, it submits *StopTransaction* after reconnecting.
+  - If the charger ends a transaction and reboots while the websocket connection is not available, and the websocket only becomes available after complete reboot, it submits *StopTransaction* after reconnecting.
+  - More test cases? Seems solid so far.
 
 ## Further reading
 
