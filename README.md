@@ -20,7 +20,9 @@ Provide a customizable private OCPP service that ignores the public-infrastructu
 
 - No authentication of charger, but can be added on a reverse proxy level.
 - No encryption, but can be added on a reverse proxy level.
-- Operation with more than one charger was never tested, but should be possible due to the stateless operation model.
+- Known obstacles to operation with more than one charger:
+  - *tinyocpp-command* has no facility to route a command to a specific charger.
+
 
 ## Architecture
 
@@ -76,19 +78,24 @@ Provide a customizable private OCPP service that ignores the public-infrastructu
 *tinyocpp* keeps no state, but offloads state into the Transaction ID:
 
 - *Rumor has it* that transaction IDs are signed Int32, so max transaction ID is *2.147.483.647*.
-- The account ID from *tags.json* for a given (RF)ID tag is multiplied x 10000000. The meter reading at start is added to it. This number is the Transaction ID.
+- The account ID from *tags.json* for a given (RF)ID tag is multiplied x 10000000. The Wh meter reading at start is converted to kWh and added to it. This number is the Transaction ID.
 - On end of transaction, the transaction ID transmitted by the charger is disassembled back into account ID and meter reading at start, based on which the consumption is calculated.
-- By this calculation, tinyocpp can only serve up to 214 accounts, but infinite™ (RF)ID tags.
+- By this calculation, 
+  - tinyocpp can serve up to 214 accounts, and infinite™ (RF)ID tags, and
+  - at a meter reading of 10 GWh, the world comes to an end.
+
 
 ## *tinyocpp-command* examples
 
 Synopsis:
 
-`tinyocpp-command <Call> <JSON Payload (the "inner" JSON) for call>`
+```shell
+tinyocpp-command <Call> <JSON Payload (the "inner" JSON) for call>
+```
 
 Examples:
 
-```
+```shell
 bin/tinyocpp-command "RemoteStartTransaction" '{"idTag":"00000000"}'
 bin/tinyocpp-command "Reset" '{"type":"Soft"}'`
 bin/tinyocpp-command "Reset" '{"type":"Hard"}'`
@@ -98,20 +105,23 @@ bin/tinyocpp-command "Reset" '{"type":"Hard"}'`
 
 Sourced from: https://osqa-ask.wireshark.org/questions/60725/how-to-dump-websockets-live-with-tshark/
 
-`tshark -p -i any -s0 -f 'port 8080' -Y websocket.payload -E occurrence=l -T fields -e ip.src -e ip.dst -e text`
+```shell
+tshark -p -i any -s0 -f 'port 8080' -Y websocket.payload -E occurrence=l -T fields -e ip.src -e ip.dst -e text
+```
 
 ## TODO
 
-- Convert all Wh units to kWh to save space in TransactionID.
 - Specify and implement accounting.
-- Collect meter data, maybe always after *StopTransaction*, add to accounting output.
+- Collect meter data, maybe always after *StopTransaction*, include with accounting output.
 - Systemd unit.
-- Something about error/exit/cleanup trap is not quite right. (Better ignore some errors and keep going, Ctrl+C, something something)
+- error/exit/cleanup behaviour is not quite right. (set -o errexit seems wrong, better ignore some errors and keep going, Ctrl+C, something something)
 
 ## Future TODOs
 
 - Implement more functionality:
   - Power level and phase switching, solar integration.
+- Command routing in *tinyocpp-command*:
+  - Add identification of charger (serial number) to *tinyocpp-command* invocation, signal all processes, have the command sent by the process that is in contact with the given charger. Note that the serial is never actively transmitted after *BootNotification* and will have to be kept as state.
 
 ## OCPP observations on go-eCharger Gemini
 

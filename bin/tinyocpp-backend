@@ -85,29 +85,30 @@ function transIdFromIdIndexAndMeterStart() {
 	# Place the idtoken internal index in the upper 3 digits (max. 214 or so)
 	# Place the meter start value in the lower 7 digits
 	local idindex="${1}"
-	local meterstart="${2}"
+	local meterstart_wh="${2}"
+	local meterstart_kwh=$(( meterstart_wh / 1000 ))
 	local upper=$(( idindex * 10000000 ))
-	local tid=$(( upper + meterstart))
+	local tid=$(( upper + meterstart_kwh))
 	echo "${tid}"
 }
 
 function consumptionFromTransId() {
 	# Transaction is done, assemble all relevant data for it
 	local tid="${1}"
-	local meterstop="${2}"
+	local meterstop_kwh="${2}"
 	# Remember:
 	# - tid % 10000000 = meter reading at start
 	# - int(tid / 10000000) = idtoken index from tokens.json (bash only maths int)
-	local meterstart=$(( tid % 10000000))
+	local meterstart_kwh=$(( tid % 10000000))
 	local indexcomponent=$(( tid - meterstart ))
 	local idindex=$(( indexcomponent / 10000000 ))
 	writelog "Status" "Transaction ${tid} split into idindex ${idindex} and meterstart ${meterstart}"
 	local idtag
 	idaccount="$(jq -e -r '.[] | select (.index == $i) | .account' --argjson i "${idindex}" < "${tagsfile}")"
-	local whconsumed=$(( meterstop - meterstart ))
-	jq -c -n '{"localtime": $l, "unixtime": $t, "account": $a, "begin_wh": $b, "end_wh": $e, "consumed_wh": $c}' \
+	local consumed_kwh=$(( meterstop_kwh - meterstart_kwh ))
+	jq -c -n '{"localtime": $l, "unixtime": $t, "account": $a, "begin_kwh": $b, "end_kwh": $e, "consumed_kwh": $c}' \
 		--arg l "$(localtime)" --arg t "$(date +%s)" \
-		--arg a "${idaccount}" --arg b "${meterstart}" --arg e "${meterstop}" --arg c "${whconsumed}"
+		--arg a "${idaccount}" --arg b "${meterstart_kwh}" --arg e "${meterstop_kwh}" --arg c "${consumed_kwh}"
 }
 
 # Check for bash version specific functionality
@@ -214,7 +215,7 @@ do
 			timestamp="$(jq -r '.timestamp' <<< "${payload}")"
 			tid="$(jq -r '.transactionId' <<< "${payload}")"
 			returnResult "${msgid}" "{}"
-			accountingdata="$(consumptionFromTransId "${tid}" "${meterstop}")"
+			accountingdata="$(consumptionFromTransId "${tid}" "$(( meterstop / 1000 ))")"
 			writelog "Accounting" "${accountingdata}"
 			# Todo: Persist and report
 			;;
