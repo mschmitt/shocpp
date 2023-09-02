@@ -26,19 +26,9 @@ touch "${writelock}"
 pidfile="${rundir}/shocpp.pid"
 echo "${$}" > "${pidfile}"
 
-function errorexit() {
-	trap - ERR
-	printf "Error on line %s\n" "$(caller)" >&2
-	exit 1
+function localtime() {
+	printf "%(%Y-%m-%d %H:%M:%S)T" -1
 }
-trap errorexit ERR
-
-function cleanup(){
-	trap - INT QUIT TERM EXIT
-	writelog "Status" "Exiting cleanly"
-	exit
-}
-trap cleanup INT QUIT TERM EXIT
 
 function writelog() {
 	local logprefix="${1}"
@@ -50,6 +40,21 @@ function writelog() {
 	fi
 	printf "%s %-10s: %s\n" "$(localtime)" "${logprefix}" "${logmsg}" >> "${logdir}/log"
 }
+
+function cleanexit(){
+	trap - INT QUIT TERM EXIT
+	writelog "Status" "Exiting cleanly"
+	exit
+}
+trap cleanexit INT QUIT TERM EXIT
+
+function errorexit() {
+	trap - ERR
+	trap - EXIT
+	writelog "Errorexit" "Error on line $(caller)"
+	exit 1
+}
+trap errorexit ERR
 
 function returnResult() {
 	# Return a result (confirmation) to the charger
@@ -82,10 +87,6 @@ function sendRequest() {
 
 function datetime() {
 	TZ=UTC printf "%(%Y-%m-%dT%H:%M:%S.000Z)T" -1
-}
-
-function localtime() {
-	printf "%(%Y-%m-%d %H:%M:%S)T" -1
 }
 
 function transIdFromIdIndexAndMeterStart() {
