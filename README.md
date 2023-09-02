@@ -4,7 +4,7 @@ A rudimentary implementation of OCPP, the Open Charge Point Protocol, Version 1.
 
 ## Status
 
-Experimental: Still switching off OCPP to fall back to the charger's internal RFID accounting when I'm done testing.
+Testing: Beginning to use it in parallel with charger's built-in RFID counters.
 
 ## Goal
 
@@ -22,7 +22,6 @@ Build a customizable private OCPP service that can safely ignore the public-infr
 - No encryption, but can be added on a reverse proxy level.
 - Known obstacles to operation with more than one charger:
   - *shocpp-command* has no facility to route a command to a specific charger/shocpp process.
-
 
 ## Architecture
 
@@ -84,7 +83,6 @@ Build a customizable private OCPP service that can safely ignore the public-infr
   - shocpp can serve up to 214 accounts, and infinite™ (RF)ID tags, and
   - at a meter reading of 10 GWh, the world comes to an end.
 
-
 ## *shocpp-command* examples
 
 Synopsis:
@@ -110,11 +108,6 @@ Sourced from: https://osqa-ask.wireshark.org/questions/60725/how-to-dump-websock
 tshark -p -i any -s0 -f 'port 8080' -Y websocket.payload -E occurrence=l -T fields -e ip.src -e ip.dst -e text
 ```
 
-## TODO
-
-- Systemd unit, generalize runtime environment.
-- error/exit/cleanup behaviour is not quite right. (set -o errexit seems wrong, better ignore some errors and keep going, Ctrl+C, something something)
-
 ## Future TODOs
 
 - Implement more functionality:
@@ -126,11 +119,9 @@ tshark -p -i any -s0 -f 'port 8080' -Y websocket.payload -E occurrence=l -T fiel
 
 - OCPP compliance
   - *TriggerMessage* call for *MeterValues* supported since FW 055.7 Beta.
-
 - Locally known RFID tags
   - 055.5: Sends locally known RFID tags to OCPP for authorization. Once authorized, consumption is reported to OCPP (*StartTransaction/StopTransaction*) and also added to the local RFID slot. The consumption after *RemoteStartTransaction* for the same RFID tag's ID is also added to the RFID slot.
   - 055.7 BETA: Accepts locally known RFID tags without any OCPP interaction, but adds consumption to the next free (unassigned) RFID configuration slot.
-
 - Reconnect and reboot behaviour
   - If the charger reconnects after loss of the websocket connection, it checks back in with a *BootNotification*.
   - If the charger ends a transaction while the websocket connection is not available, it submits *StopTransaction* after reconnecting.
