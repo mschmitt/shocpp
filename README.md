@@ -96,9 +96,10 @@ shocpp-command <Call> <JSON Payload (the "inner" JSON) for call>
 Examples:
 
 ```shell
-bin/shocpp-command "RemoteStartTransaction" '{"idTag":"00000000"}'
-bin/shocpp-command "Reset" '{"type":"Soft"}'`
-bin/shocpp-command "Reset" '{"type":"Hard"}'`
+bin/shocpp-command RemoteStartTransaction '{"idTag":"00000000"}'
+bin/shocpp-command TriggerMessage '{"requestedMessage": "StatusNotification"}'
+bin/shocpp-command Reset '{"type":"Soft"}'`
+bin/shocpp-command Reset '{"type":"Hard"}'`
 ```
 
 ## HOWTO sniff OCPP traffic
