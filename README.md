@@ -102,6 +102,7 @@ Sourced from: https://osqa-ask.wireshark.org/questions/60725/how-to-dump-websock
 
 ## TODO
 
+- Convert all Wh units to kWh to save space in TransactionID.
 - Specify and implement accounting.
 - Collect meter data, maybe always after *StopTransaction*, add to accounting output.
 - Systemd unit.
