@@ -115,9 +115,9 @@ function consumptionFromTransId() {
 	local idtag
 	idaccount="$(jq -e -r '.[] | select (.index == $i) | .account' --argjson i "${idindex}" < "${tagsfile}")"
 	local consumed_kwh=$(( meterstop_kwh - meterstart_kwh ))
-	jq -c -n '{"localtime": $l, "unixtime": $t, "account": $a, "begin_kwh": $b, "end_kwh": $e, "consumed_kwh": $c}' \
+	jq -c -n '{"localtime": $l, "unixtime": $t, "account": $a, "begin_kwh": $b, "end_kwh": $e, "consumed_kwh": $c, "total_kwh": $m}' \
 		--arg l "$(localtime)" --arg t "$(date +%s)" \
-		--arg a "${idaccount}" --arg b "${meterstart_kwh}" --arg e "${meterstop_kwh}" --arg c "${consumed_kwh}"
+		--arg a "${idaccount}" --arg b "${meterstart_kwh}" --arg e "${meterstop_kwh}" --arg c "${consumed_kwh}" --arg m "${meter_kwh}"
 }
 
 # Check for bash version specific functionality
