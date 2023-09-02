@@ -2,9 +2,9 @@
 Description=shocpp
 
 [Service]
-User=martin
-Group=martin
-ExecStart=/home/martin/devel/shocpp/bin/shocpp-listener
+User=daemon
+Group=daemon
+ExecStart=/usr/local/shocpp/bin/shocpp-listener
 
 [Install]
 WantedBy=network.target
