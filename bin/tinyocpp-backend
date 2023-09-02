@@ -100,9 +100,9 @@ function consumptionFromTransId() {
 	# - tid % 10000000 = meter reading at start
 	# - int(tid / 10000000) = idtoken index from tokens.json (bash only maths int)
 	local meterstart_kwh=$(( tid % 10000000))
-	local indexcomponent=$(( tid - meterstart ))
+	local indexcomponent=$(( tid - meterstart_kwh ))
 	local idindex=$(( indexcomponent / 10000000 ))
-	writelog "Status" "Transaction ${tid} split into idindex ${idindex} and meterstart ${meterstart}"
+	writelog "Status" "Transaction ${tid} split into idindex ${idindex} and meterstart_kwh ${meterstart_kwh}"
 	local idtag
 	idaccount="$(jq -e -r '.[] | select (.index == $i) | .account' --argjson i "${idindex}" < "${tagsfile}")"
 	local consumed_kwh=$(( meterstop_kwh - meterstart_kwh ))
