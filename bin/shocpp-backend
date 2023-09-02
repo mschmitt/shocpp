@@ -36,9 +36,9 @@ function writelog() {
 	if [[ -t 2 ]]
 	then
 		# If stderr is a terminal
-		printf "%s %-10s: %s\n" "$(localtime)" "${logprefix}" "${logmsg}" >&2
+		printf "%s [%s] %-10s: %s\n" $$ "$(localtime)" "${logprefix}" "${logmsg}" >&2
 	fi
-	printf "%s %-10s: %s\n" "$(localtime)" "${logprefix}" "${logmsg}" >> "${logdir}/log"
+	printf "%s [%s] %-10s: %s\n" "$(localtime)" $$ "${logprefix}" "${logmsg}" >> "${logdir}/log"
 }
 
 function cleanexit(){
