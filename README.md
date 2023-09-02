@@ -34,8 +34,8 @@ Build a customizable private OCPP service that can safely ignore the public-infr
 
 - Listen address via the *WS_ADDRESS* environment (default: *0.0.0.0*, listen on all interfaces).
 - Listen port via the *WS_PORT* environment (default: *8080*).
-- Path to *tags.json* via *shocpp_TAGSFILE* environment (default: *conf/tags.json,* parallel to shocpp's *bin/* directory)
-- Path to Accounting directory via *shocpp_ACCOUNTINGDIR* environment (default: *accounting/*, parallel to shocpp's *bin/* directory)
+- Path to *tags.json* via *SHOCPP_TAGSFILE* environment (default: *conf/tags.json,* parallel to shocpp's *bin/* directory)
+- Path to Accounting directory via *SHOCPP_ACCOUNTINGDIR* environment (default: *accounting/*, parallel to shocpp's *bin/* directory)
 
 ## tags.json
 
@@ -126,7 +126,11 @@ tshark -p -i any -s0 -f 'port 8080' -Y websocket.payload -E occurrence=l -T fiel
 ## OCPP observations on go-eCharger Gemini
 
 - OCPP compliance
-  - *TriggerMessage* call supported since FW 055.7 Beta.
+  - *TriggerMessage* call for *MeterValues* supported since FW 055.7 Beta.
+
+- Locally known RFID tags
+  - 055.5: Sends locally known RFID tags to OCPP for authorization. Once authorized, consumption is reported to OCPP (*StartTransaction/StopTransaction*) and also added to the local RFID slot. The consumption after *RemoteStartTransaction* for the same RFID tag's ID is also added to the RFID slot.
+  - 055.7 BETA: Accepts locally known RFID tags without any OCPP interaction, but adds consumption to the next free (unassigned) RFID configuration slot.
 
 - Reconnect and reboot behaviour
   - If the charger reconnects after loss of the websocket connection, it checks back in with a *BootNotification*.

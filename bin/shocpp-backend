@@ -115,9 +115,9 @@ function consumptionFromTransId() {
 	local idtag
 	idaccount="$(jq -e -r '.[] | select (.index == $i) | .account' --argjson i "${idindex}" < "${tagsfile}")"
 	local consumed_kwh=$(( meterstop_kwh - meterstart_kwh ))
-	jq -c -n '{"localtime": $l, "unixtime": $t, "account": $a, "begin_kwh": $b, "end_kwh": $e, "consumed_kwh": $c, "total_kwh": $m}' \
+	jq -c -n '{"localtime": $l, "unixtime": $t, "account": $a, "begin_kwh": $b, "end_kwh": $e, "consumed_kwh": $c}' \
 		--arg l "$(localtime)" --arg t "$(date +%s)" \
-		--arg a "${idaccount}" --arg b "${meterstart_kwh}" --arg e "${meterstop_kwh}" --arg c "${consumed_kwh}" --arg m "${meter_kwh}"
+		--arg a "${idaccount}" --arg b "${meterstart_kwh}" --arg e "${meterstop_kwh}" --arg c "${consumed_kwh}"
 }
 
 # Check for bash version specific functionality
@@ -194,15 +194,11 @@ do
 			writelog "Status" "Handling StatusNotification"
 			# Always respond with empty payload
 			returnResult "${msgid}" "{}"
-			# Always request MeterValues
-			sendRequest "TriggerMessage" '{"requestedMessage": "MeterValues"}'
 			;;
 		"Heartbeat")
 			writelog "Status" "Handling Heartbeat"
 			# Always respond with timestamp
 			returnResult "${msgid}" "{\"currentTime\": \"$(datetime)\"}"
-			# Always request MeterValues
-			sendRequest "TriggerMessage" '{"requestedMessage": "MeterValues"}'
 			;;
 		"Authorize")
 			writelog "Status" "Handling Authorize"
@@ -231,14 +227,6 @@ do
 			accountingdata="$(consumptionFromTransId "${tid}" "$(( meterstop / 1000 ))")"
 			writelog "Accounting" "${accountingdata}"
 			# Todo: Persist and report
-			;;
-		"MeterValues")
-			writelog "Status" "Handling MeterValues"
-			meter_wh="$(jq '.meterValue[].sampledValue[] | select (.measurand == "Energy.Active.Import.Register") | .value | tonumber' <<< "${payload}")"
-			meter_kwh=$(( meter_wh / 1000 ))
-			writelog "Meters" "wh=${meter_wh}, kwh=${meter_kwh}"
-			# Empty Payload confirms the request
-			returnResult "${msgid}" "{}"
 			;;
 		"none")
 			: #writelog "Status" "Ignoring confirmation from charger"
