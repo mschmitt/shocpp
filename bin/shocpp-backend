@@ -42,17 +42,19 @@ function writelog() {
 }
 
 function cleanexit(){
+	local exitcode=$?
 	trap - INT QUIT TERM EXIT
-	writelog "Status" "Exiting cleanly"
-	exit
+	writelog "Status" "Exiting ${exitcode}"
+	exit "${exitcode}"
 }
 trap cleanexit INT QUIT TERM EXIT
 
 function errorexit() {
+	local exitcode=$?
 	trap - ERR
 	trap - EXIT
-	writelog "Errorexit" "Error on line $(caller)"
-	exit 1
+	writelog "Errorexit" "Error, exitcode ${exitcode} on line $(caller)"
+	exit "${exitcode}"
 }
 trap errorexit ERR
 
