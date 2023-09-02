@@ -1,0 +1,10 @@
+[Unit]
+Description=shocpp
+
+[Service]
+User=martin
+Group=martin
+ExecStart=/home/martin/devel/shocpp/bin/shocpp-listener
+
+[Install]
+WantedBy=network.target

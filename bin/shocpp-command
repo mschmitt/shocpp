@@ -20,7 +20,7 @@ function errorexit() {
 trap errorexit ERR
 
 cmdfile="${me_dir}/../run/cmd.json"
-pidfile="${me_dir}/../run/tinyocpp.pid"
+pidfile="${me_dir}/../run/shocpp.pid"
 
 printf "[2,\"%s\",\"%s\",%s]\n" "${SRANDOM}" "${1}" "${2}" > "${cmdfile}"
 kill -USR1 "$(cat "${pidfile}")"

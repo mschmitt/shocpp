@@ -1,4 +1,4 @@
-# tinyocpp
+# shocpp
 
 A rudimentary implementation of OCPP, the Open Charge Point Protocol, Version 1.6
 
@@ -8,7 +8,7 @@ Experimental: Still switching off OCPP to fall back to the charger's internal RF
 
 ## Goal
 
-Provide a customizable private OCPP service that ignores the public-infrastructure scalability and security of most other implementations.
+Build a customizable private OCPP service that can safely ignore the public-infrastructure aspects of most other implementations.
 
 ## Scope
 
@@ -21,21 +21,21 @@ Provide a customizable private OCPP service that ignores the public-infrastructu
 - No authentication of charger, but can be added on a reverse proxy level.
 - No encryption, but can be added on a reverse proxy level.
 - Known obstacles to operation with more than one charger:
-  - *tinyocpp-command* has no facility to route a command to a specific charger.
+  - *shocpp-command* has no facility to route a command to a specific charger/shocpp process.
 
 
 ## Architecture
 
-- *tinyocpp-backend* implements the entire logic and communicates via stdin/stdout, as known from inetd/xinetd/cgi-bin.
-- *tinyocpp-listener* wraps *tinyocpp-backend* behind *websocketd*.
-- *tinyocpp-command* passes payloads to *tinyocpp-backend*, to be sent to the charger.
+- *shocpp-backend* implements the entire logic and communicates via stdin/stdout, as known from inetd/xinetd/cgi-bin.
+- *shocpp-listener* wraps *shocpp-backend* behind *websocketd*.
+- *shocpp-command* passes payloads to *shocpp-backend*, to be sent to the charger.
 
 ## Configuration
 
 - Listen address via the *WS_ADDRESS* environment (default: *0.0.0.0*, listen on all interfaces).
 - Listen port via the *WS_PORT* environment (default: *8080*).
-- Path to *tags.json* via *TINYOCPP_TAGSFILE* environment (default: *conf/tags.json,* parallel to tinyocpp's *bin/* directory)
-- Path to Accounting directory via *TINYOCPP_ACCOUNTINGDIR* environment (default: *accounting/*, parallel to tinyocpp's *bin/* directory)
+- Path to *tags.json* via *shocpp_TAGSFILE* environment (default: *conf/tags.json,* parallel to shocpp's *bin/* directory)
+- Path to Accounting directory via *shocpp_ACCOUNTINGDIR* environment (default: *accounting/*, parallel to shocpp's *bin/* directory)
 
 ## tags.json
 
@@ -75,30 +75,30 @@ Provide a customizable private OCPP service that ignores the public-infrastructu
 
 ## Transaction ID model
 
-*tinyocpp* keeps no state, but offloads state into the Transaction ID:
+*shocpp* keeps no state, but offloads state into the Transaction ID:
 
 - *Rumor has it* that transaction IDs are signed Int32, so max transaction ID is *2.147.483.647*.
 - The account ID from *tags.json* for a given (RF)ID tag is multiplied x 10000000. The Wh meter reading at start is converted to kWh and added to it. This number is the Transaction ID.
 - On end of transaction, the transaction ID transmitted by the charger is disassembled back into account ID and meter reading at start, based on which the consumption is calculated.
 - By this calculation, 
-  - tinyocpp can serve up to 214 accounts, and infinite™ (RF)ID tags, and
+  - shocpp can serve up to 214 accounts, and infinite™ (RF)ID tags, and
   - at a meter reading of 10 GWh, the world comes to an end.
 
 
-## *tinyocpp-command* examples
+## *shocpp-command* examples
 
 Synopsis:
 
 ```shell
-tinyocpp-command <Call> <JSON Payload (the "inner" JSON) for call>
+shocpp-command <Call> <JSON Payload (the "inner" JSON) for call>
 ```
 
 Examples:
 
 ```shell
-bin/tinyocpp-command "RemoteStartTransaction" '{"idTag":"00000000"}'
-bin/tinyocpp-command "Reset" '{"type":"Soft"}'`
-bin/tinyocpp-command "Reset" '{"type":"Hard"}'`
+bin/shocpp-command "RemoteStartTransaction" '{"idTag":"00000000"}'
+bin/shocpp-command "Reset" '{"type":"Soft"}'`
+bin/shocpp-command "Reset" '{"type":"Hard"}'`
 ```
 
 ## HOWTO sniff OCPP traffic
@@ -120,10 +120,13 @@ tshark -p -i any -s0 -f 'port 8080' -Y websocket.payload -E occurrence=l -T fiel
 
 - Implement more functionality:
   - Power level and phase switching, solar integration.
-- Command routing in *tinyocpp-command*:
-  - Add identification of charger (serial number) to *tinyocpp-command* invocation, signal all processes, have the command sent by the process that is in contact with the given charger. Note that the serial is never actively transmitted after *BootNotification* and will have to be kept as state.
+- Command routing in *shocpp-command*:
+  - Add identification of charger (serial number) to *shocpp-command* invocation, signal all processes, have the command sent by the process that is in contact with the given charger. Note that the serial is never actively transmitted after *BootNotification* and will have to be kept as state.
 
 ## OCPP observations on go-eCharger Gemini
+
+- OCPP compliance
+  - *TriggerMessage* call supported since FW 055.7 Beta.
 
 - Reconnect and reboot behaviour
   - If the charger reconnects after loss of the websocket connection, it checks back in with a *BootNotification*.
@@ -139,7 +142,7 @@ tshark -p -i any -s0 -f 'port 8080' -Y websocket.payload -E occurrence=l -T fiel
 
 ISC License
 
-**Copyright 2023, the tinyocpp developers**
+**Copyright 2023, the shocpp developers**
 
 Permission to use, copy, modify, and/or distribute this software for any purpose with or without fee is hereby granted, provided that the above copyright notice and this permission notice appear in all copies.
 

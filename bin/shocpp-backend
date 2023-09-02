@@ -9,10 +9,10 @@ me_base="$(basename "${me_path}")"
 heartbeatInterval=55
 
 # File contains JSON array with known tags
-tagsfile="${TINYOCPP_TAGSFILE:-${me_dir}/../conf/tags.json}"
+tagsfile="${SHOCPP_TAGSFILE:-${me_dir}/../conf/tags.json}"
 
 # Directory where accounting information will be written
-accountingdir="${TINYOCPP_ACCOUNTDINGDIR:-${me_dir}/../accounting}"
+accountingdir="${SHOCPP_ACCOUNTDINGDIR:-${me_dir}/../accounting}"
 [[ -d "${accountingdir}" ]] || mkdir -p "${accountingdir}"
 
 # Misc paths and dirs
@@ -23,7 +23,7 @@ rundir="${me_dir}/../run"
 cmdfile="${rundir}/cmd.json"
 writelock="${rundir}/writelock"
 touch "${writelock}"
-pidfile="${rundir}/tinyocpp.pid"
+pidfile="${rundir}/shocpp.pid"
 echo "${$}" > "${pidfile}"
 
 function errorexit() {
@@ -56,20 +56,29 @@ function returnResult() {
 	local msgid="${1}"
 	local payload="${2}"
 	result="$(jq -c -n '[3, $msgid, $payload]' --arg msgid "${msgid}" --argjson payload "${payload}")"
-	writelog "Sent" "${result}"
 	# Lock for safe interaction with sendRequest
 	flock "${writelock}" printf "%s\n" "${result}"
+	writelog "Sent" "${result}"
 }
 
-function sendRequest() {
-	# Send a request to the charger
+function sendCommand() {
+	# Send a command to the charger (externally supplied)
 	local message
 	message="$(cat "${cmdfile}")"
-	writelog "Sent" "${message}"
 	# Lock for safe interaction with returnResult
 	flock "${writelock}" printf "%s\n" "${message}"
+	writelog "Sent" "${message}"
 }
-trap sendRequest USR1
+trap sendCommand USR1
+
+function sendRequest() {
+	# Send internal command to the charger
+	local call="${1}"
+	local payload="${2}"
+	printf -v message "[2,\"%s\",\"%s\",%s]" "${SRANDOM}" "${call}" "${payload}"
+	flock "${writelock}" printf "%s\n" "${message}"
+	writelog "Sent" "${message}"
+}
 
 function datetime() {
 	TZ=UTC printf "%(%Y-%m-%dT%H:%M:%S.000Z)T" -1
@@ -185,11 +194,15 @@ do
 			writelog "Status" "Handling StatusNotification"
 			# Always respond with empty payload
 			returnResult "${msgid}" "{}"
+			# Always request MeterValues
+			sendRequest "TriggerMessage" '{"requestedMessage": "MeterValues"}'
 			;;
 		"Heartbeat")
 			writelog "Status" "Handling Heartbeat"
 			# Always respond with timestamp
 			returnResult "${msgid}" "{\"currentTime\": \"$(datetime)\"}"
+			# Always request MeterValues
+			sendRequest "TriggerMessage" '{"requestedMessage": "MeterValues"}'
 			;;
 		"Authorize")
 			writelog "Status" "Handling Authorize"
@@ -219,8 +232,16 @@ do
 			writelog "Accounting" "${accountingdata}"
 			# Todo: Persist and report
 			;;
+		"MeterValues")
+			writelog "Status" "Handling MeterValues"
+			meter_wh="$(jq '.meterValue[].sampledValue[] | select (.measurand == "Energy.Active.Import.Register") | .value | tonumber' <<< "${payload}")"
+			meter_kwh=$(( meter_wh / 1000 ))
+			writelog "Meters" "wh=${meter_wh}, kwh=${meter_kwh}"
+			# Empty Payload confirms the request
+			returnResult "${msgid}" "{}"
+			;;
 		"none")
-			writelog "Status" "Ignoring confirmation from charger"
+			: #writelog "Status" "Ignoring confirmation from charger"
 			;;
 		*)
 			writelog "Unknown:" "${call}"
