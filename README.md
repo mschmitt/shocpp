@@ -111,9 +111,7 @@ tshark -p -i any -s0 -f 'port 8080' -Y websocket.payload -E occurrence=l -T fiel
 
 ## TODO
 
-- Specify and implement accounting.
-- Collect meter data, maybe always after *StopTransaction*, include with accounting output.
-- Systemd unit.
+- Systemd unit, generalize runtime environment.
 - error/exit/cleanup behaviour is not quite right. (set -o errexit seems wrong, better ignore some errors and keep going, Ctrl+C, something something)
 
 ## Future TODOs

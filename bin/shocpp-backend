@@ -227,6 +227,12 @@ do
 			accountingdata="$(consumptionFromTransId "${tid}" "$(( meterstop / 1000 ))")"
 			writelog "Accounting" "${accountingdata}"
 			# Todo: Persist and report
+			# Derive deep accounting dir from year and month
+			printf -v monthdir "%s/%(%Y)T/%(%m)T/" "${accountingdir}" -1 -1
+			printf -v accountfile "%(%s)T-%s.json" -1 "$(openssl rand -hex 6)"
+			mkdir -p "${monthdir}"
+			echo "${accountingdata}" > "${monthdir}/${accountfile}"
+			writelog "Accounting" "Written to $(readlink -f "${accountfile}")"
 			;;
 		"none")
 			: #writelog "Status" "Ignoring confirmation from charger"
