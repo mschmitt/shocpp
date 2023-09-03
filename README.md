@@ -20,6 +20,7 @@ Build a customizable private OCPP service that can safely ignore the public-infr
 
 - No authentication of charger, but can be added on a reverse proxy level.
 - No encryption, but can be added on a reverse proxy level.
+- No tracking of charging duration. Would need to save service-side state for that.
 - Known obstacles to operation with more than one charger:
   - *shocpp-command* has no facility to route a command to a specific charger/shocpp process.
 
