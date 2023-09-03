@@ -122,7 +122,7 @@ tshark -p -i any -s0 -f 'port 8080' -Y websocket.payload -E occurrence=l -T fiel
   - *TriggerMessage* call for *MeterValues* supported since FW 055.7 Beta.
 - Locally known RFID tags
   - 055.5: Sends locally known RFID tags to OCPP for authorization. Once authorized, consumption is reported to OCPP (*StartTransaction/StopTransaction*) and also added to the local RFID slot. The consumption after *RemoteStartTransaction* for the same RFID tag's ID is also added to the RFID slot.
-  - 055.7 BETA: Accepts locally known RFID tags without any OCPP interaction, but adds consumption to the next free (unassigned) RFID configuration slot.
+  - 055.7 BETA: Accepts locally known RFID tags without any OCPP interaction, but adds consumption to the next free (unassigned) RFID configuration slot. Seems erratic. Github Issue: https://github.com/goecharger/go-eCharger-API-v2/issues/176
 - Reconnect and reboot behaviour
   - If the charger reconnects after loss of the websocket connection, it checks back in with a *BootNotification*.
   - If the charger ends a transaction while the websocket connection is not available, it submits *StopTransaction* after reconnecting.
