@@ -131,7 +131,7 @@ then
 fi
 
 # Check for misc. dependencies
-for dep in jq rotatelogs
+for dep in jq
 do
 	if ! type "${dep}" >/dev/null
 	then
