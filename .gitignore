@@ -1,4 +1,6 @@
+cannedactions.txt
 conf/tags.json
+bin/shocpp-caller
 log
 run
 testdata

@@ -29,6 +29,7 @@ Build a customizable personal OCPP service for internal accounting.
 - *shocpp-backend* implements the entire logic and communicates via stdin/stdout, as known from inetd/xinetd/cgi-bin.
 - *shocpp-listener* wraps *shocpp-backend* behind *websocketd*.
 - *shocpp-command* passes payloads to *shocpp-backend*, to be sent to the charger.
+- *shocpp-caller* is essentially similar to *shocpp-command*, but I use this to invoke hard-coded "canned calls" with random IDs from Siri shortcuts. 
 
 ## Configuration
 

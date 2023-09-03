@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+set -o errexit
+
+me_path="$(readlink -f "$0")"
+me_dir="$(dirname "${me_path}")"
+me_base="$(basename "${me_path}")"
+
+function errorexit() {
+	trap - ERR
+	printf "Error on line %s\n" "$(caller)"
+	exit 1
+}
+trap errorexit ERR
+
+cmdfile="${me_dir}/../run/cmd.json"
+pidfile="${me_dir}/../run/shocpp.pid"
+
+# Canned commands to be called from CGI
+case "${1}" in
+	'2d7628d355dfdb57f89b4847480801c1')
+		# Soft Reset
+		printf "[2,\"%s\",\"%s\",%s]\n" "${RANDOM}" 'Reset' '{"type":"Soft"}' > "${cmdfile}"
+		;;
+	'14800483fcf9cf036c3a3c718262e4d4')
+		# RemoteStartTransaction with (RF)ID tag 1111
+		printf "[2,\"%s\",\"%s\",%s]\n" "${RANDOM}" 'RemoteStartTransaction' '{"idTag":"1111"}' > "${cmdfile}"
+		;;
+	'8fc8791d68a5362b61b83fddd1141d74')
+		# RemoteStartTransaction with (RF)ID tag 2222
+		printf "[2,\"%s\",\"%s\",%s]\n" "${RANDOM}" 'RemoteStartTransaction' '{"idTag":"2222"}' > "${cmdfile}"
+		;;
+	*)
+		exit 1
+		;;
+esac
+kill -USR1 "$(cat "${pidfile}")"
