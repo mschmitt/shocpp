@@ -82,7 +82,7 @@ function sendRequest() {
 	# Send internal command to the charger
 	local call="${1}"
 	local payload="${2}"
-	printf -v message "[2,\"%s\",\"%s\",%s]" "${SRANDOM}" "${call}" "${payload}"
+	printf -v message "[2,\"%s\",\"%s\",%s]" "${RANDOM}" "${call}" "${payload}"
 	flock "${writelock}" printf "%s\n" "${message}"
 	writelog "Sent" "${message}"
 }
@@ -122,13 +122,6 @@ function consumptionFromTransId() {
 		--arg l "$(localtime)" --arg t "$(date +%s)" \
 		--arg a "${idaccount}" --arg b "${meterstart_kwh}" --arg e "${meterstop_kwh}" --arg c "${consumed_kwh}"
 }
-
-# Check for bash version specific functionality
-if [[ ! -v SRANDOM ]] 
-then
-	writelog "ERROR" "Bash 5.1 with SRANDOM support is required."
-	exit
-fi
 
 # Check for misc. dependencies
 for dep in jq
@@ -235,7 +228,7 @@ do
 			printf -v accountfile "%(%s)T-%s.json" -1 "$(openssl rand -hex 6)"
 			mkdir -p "${monthdir}"
 			echo "${accountingdata}" > "${monthdir}/${accountfile}"
-			writelog "Accounting" "Written to $(readlink -f "${accountfile}")"
+			writelog "Accounting" "Written to $(readlink -f "${monthdir}/${accountfile}")"
 			;;
 		"none")
 			: #writelog "Status" "Ignoring confirmation from charger"

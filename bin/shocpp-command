@@ -5,13 +5,6 @@ me_path="$(readlink -f "$0")"
 me_dir="$(dirname "${me_path}")"
 me_base="$(basename "${me_path}")"
 
-# Check for bash version specific functionality
-if [[ ! -v SRANDOM ]] 
-then
-	echo "Bash 5.1 with SRANDOM support is required."
-	exit
-fi
-
 function errorexit() {
 	trap - ERR
 	printf "Error on line %s\n" "$(caller)"
@@ -22,5 +15,5 @@ trap errorexit ERR
 cmdfile="${me_dir}/../run/cmd.json"
 pidfile="${me_dir}/../run/shocpp.pid"
 
-printf "[2,\"%s\",\"%s\",%s]\n" "${SRANDOM}" "${1}" "${2}" > "${cmdfile}"
+printf "[2,\"%s\",\"%s\",%s]\n" "${RANDOM}" "${1}" "${2}" > "${cmdfile}"
 kill -USR1 "$(cat "${pidfile}")"
