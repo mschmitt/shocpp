@@ -1,0 +1,8 @@
+# /etc/logrotate.d/shocpp
+/usr/local/shocpp/log/log {
+	monthly
+	missingok
+	rotate 24
+	dateext
+	compress
+}
