@@ -225,7 +225,7 @@ do
 			# Todo: Persist and report
 			# Derive deep accounting dir from year and month
 			printf -v monthdir "%s/%(%Y)T/%(%m)T/" "${accountingdir}" -1 -1
-			printf -v accountfile "%(%s)T-%s.json" -1 "$(openssl rand -hex 6)"
+			printf -v accountfile "%(%s)T-%0.4x.json" -1 "${RANDOM}"
 			mkdir -p "${monthdir}"
 			echo "${accountingdata}" > "${monthdir}/${accountfile}"
 			writelog "Accounting" "Written to $(readlink -f "${monthdir}/${accountfile}")"
