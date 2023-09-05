@@ -38,7 +38,7 @@ function writelog() {
 		# If stderr is a terminal
 		printf "%s [%s] %-10s: %s\n" $$ "$(localtime)" "${logprefix}" "${logmsg}" >&2
 	fi
-	printf "%s [%s] %-10s: %s\n" "$(localtime)" $$ "${logprefix}" "${logmsg}" >> "${logdir}/log"
+	flock "${logdir}/log" printf "%s [%s] %-10s: %s\n" "$(localtime)" $$ "${logprefix}" "${logmsg}" >> "${logdir}/log"
 }
 
 function cleanexit(){
@@ -134,7 +134,7 @@ do
 done
 [[ -v depsmissing ]] && exit
 
-writelog "Status" "Starting up"
+writelog "Status" "Connection from ${REMOTE_ADDR}, process id is ${$}."
 tagsfile="$(readlink -f "${tagsfile}")"
 if jq -e . < "${tagsfile}" >/dev/null 2>&1
 then
@@ -144,7 +144,6 @@ else
 	exit
 fi
 
-writelog "Status" "Ready to serve requests, process id is ${$}"
 while read -r received
 do
 	writelog "Received" "${received}"
