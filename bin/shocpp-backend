@@ -21,6 +21,7 @@ logdir="${me_dir}/../log"
 rundir="${me_dir}/../run"
 [[ -d "${rundir}" ]] || mkdir -p "${rundir}"
 cmdfile="${rundir}/cmd.json"
+respfile="${rundir}/resp.json"
 writelock="${rundir}/writelock"
 touch "${writelock}"
 pidfile="${rundir}/shocpp.pid"
@@ -230,7 +231,8 @@ do
 			writelog "Accounting" "Written to $(readlink -f "${monthdir}/${accountfile}")"
 			;;
 		"none")
-			: #writelog "Status" "Ignoring confirmation from charger"
+			writelog "Status" "Saving confirmation from charger in $(readlink -f "${respfile}")"
+			jq . <<< "${payload}" > "${respfile}"
 			;;
 		*)
 			writelog "Unknown:" "${call}"

@@ -4,7 +4,12 @@ A rudimentary implementation of OCPP, the Open Charge Point Protocol, Version 1.
 
 ## Status
 
-Testing: Beginning to use it in parallel with charger's built-in RFID counters.
+Testing: Daily use backed up by the charger's built-in RFID counters.
+
+## Motivation
+
+- One user of the charger is handicapped and unable to quickly present RFID and plug the cable in one go.
+- Spaß am Gerät.
 
 ## Goal
 
@@ -30,7 +35,7 @@ Testing: Beginning to use it in parallel with charger's built-in RFID counters.
 - *shocpp-backend* implements the entire logic and communicates via stdin/stdout, as known from inetd/xinetd/cgi-bin.
 - *shocpp-listener* wraps *shocpp-backend* behind *websocketd*.
 - *shocpp-command* passes payloads to *shocpp-backend*, to be sent to the charger.
-- *shocpp-caller* is essentially similar to *shocpp-command*, but I use this to invoke hard-coded "canned calls" with random IDs from Siri shortcuts. 
+- *shocpp-caller* is essentially similar to *shocpp-command*, but I use this in a webserver/cgi-bin scenario to invoke hard-coded "canned calls" with random IDs from Siri shortcuts. 
 
 ## Configuration
 
@@ -97,7 +102,6 @@ Incoming calls are handled by the main *while read* loop in *shocpp-backend* as 
 ### Outgoing
 
 - The script generates no outgoing calls at this time, other than those handed to it via *shocpp-command*.
-- For a period of time, it requested the current *MeterValues* through a *TriggerMessage* call after every *Heartbeat*. This was removed, but the *sendRequest()* method is still in place and currently unused.
 
 ## Transaction ID model
 
@@ -152,7 +156,7 @@ bin/shocpp-command Reset '{"type":"Soft"}'`
 bin/shocpp-command Reset '{"type":"Hard"}'`
 ```
 
-*shocpp-command* saves the requested command to *run/cmd.json* and signals *SIGUSR1* to the running *shocpp-backend*. *shocpp-backend* traps *USR1* and interrupts all work to send the contents of *run/cmd.json* to the charger.
+*shocpp-command* saves the requested command to *run/cmd.json* and signals *SIGUSR1* to the running *shocpp-backend*. *shocpp-backend* traps *USR1* and interrupts all work to send the contents of *run/cmd.json* to the charger. Meanwhile, shocpp-command waits for *run/resp.json* to change and delivers it back as its own output.
 
 ## HOWTO sniff OCPP traffic
 

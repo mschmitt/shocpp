@@ -13,7 +13,17 @@ function errorexit() {
 trap errorexit ERR
 
 cmdfile="${me_dir}/../run/cmd.json"
+cmdlock="${me_dir}/../run/cmdlock"
+respfile="${me_dir}/../run/resp.json"
 pidfile="${me_dir}/../run/shocpp.pid"
 
+exec {lockfd}<>"${cmdlock}"
+flock -w 5 "${lockfd}"
 printf "[2,\"%s\",\"%s\",%s]\n" "${RANDOM}" "${1}" "${2}" > "${cmdfile}"
-kill -USR1 "$(cat "${pidfile}")"
+if kill -USR1 "$(cat "${pidfile}")" && inotifywait -t 5 -e close "${respfile}" >/dev/null
+then
+	cat "${respfile}"
+else
+	echo "OCPP unreachable." >&2
+	exit 1
+fi

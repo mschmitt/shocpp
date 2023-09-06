@@ -13,6 +13,8 @@ function errorexit() {
 trap errorexit ERR
 
 cmdfile="${me_dir}/../run/cmd.json"
+cmdlock="${me_dir}/../run/cmdlock"
+respfile="${me_dir}/../run/resp.json"
 pidfile="${me_dir}/../run/shocpp.pid"
 
 # Canned commands to be called from CGI
@@ -33,4 +35,10 @@ case "${1}" in
 		exit 1
 		;;
 esac
-kill -USR1 "$(cat "${pidfile}")"
+if kill -USR1 "$(cat "${pidfile}")" && inotifywait -t 5 -e close "${respfile}" >/dev/null
+then
+	jq -r .status < "${respfile}"
+else
+	echo "OCPP unreachable"
+	exit 1
+fi
