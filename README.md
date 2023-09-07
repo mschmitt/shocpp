@@ -176,6 +176,10 @@ Sourced from: https://osqa-ask.wireshark.org/questions/60725/how-to-dump-websock
 tshark -p -i any -s0 -f 'port 8080' -Y websocket.payload -E occurrence=l -T fields -e ip.src -e ip.dst -e text
 ```
 
+### Websocket message format
+
+The format of the outer OCPP payload is outlined in the occp-j specification PDF.
+
 ### OCPP observations on go-eCharger Gemini
 
 - OCPP compliance

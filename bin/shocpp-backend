@@ -20,8 +20,8 @@ logdir="${me_dir}/../log"
 [[ -d "${logdir}" ]] || mkdir -p "${logdir}"
 rundir="${me_dir}/../run"
 [[ -d "${rundir}" ]] || mkdir -p "${rundir}"
-cmdfile="${rundir}/cmd.json"
-respfile="${rundir}/resp.json"
+requestfile="${rundir}/request.json"
+confirmationfile="${rundir}/confirmation.json"
 writelock="${rundir}/writelock"
 touch "${writelock}"
 pidfile="${rundir}/shocpp.pid"
@@ -59,31 +59,32 @@ function errorexit() {
 }
 trap errorexit ERR
 
-function returnResult() {
+function returnConfirmation() {
 	# Return a result (confirmation) to the charger
 	local msgid="${1}"
 	local payload="${2}"
 	result="$(jq -c -n '[3, $msgid, $payload]' --arg msgid "${msgid}" --argjson payload "${payload}")"
-	# Lock for safe interaction with sendRequest
+	# Lock for safe interaction with other functions writing to the charger
 	flock "${writelock}" printf "%s\n" "${result}"
 	writelog "Sent" "${result}"
 }
 
-function sendCommand() {
-	# Send a command to the charger (externally supplied)
+function sendExternalRequest() {
+	# Send a request to the charger (externally supplied)
 	local message
-	message="$(cat "${cmdfile}")"
-	# Lock for safe interaction with returnResult
+	message="$(cat "${requestfile}")"
+	# Lock for safe interaction with other functions writing to the charger
 	flock "${writelock}" printf "%s\n" "${message}"
 	writelog "Sent" "${message}"
 }
-trap sendCommand USR1
+trap sendExternalRequest USR1
 
-function sendRequest() {
-	# Send internal command to the charger
+function sendInternalRequest() {
+	# Send internal request to the charger
 	local call="${1}"
 	local payload="${2}"
 	printf -v message "[2,\"%s\",\"%s\",%s]" "${RANDOM}" "${call}" "${payload}"
+	# Lock for safe interaction with other functions writing to the charger
 	flock "${writelock}" printf "%s\n" "${message}"
 	writelog "Sent" "${message}"
 }
@@ -184,22 +185,22 @@ do
 		"BootNotification")
 			writelog "Status" "Handling BootNotification"
 			# Always accept with the required fields
-			returnResult "${msgid}" "{\"currentTime\": \"$(datetime)\", \"interval\": ${heartbeatInterval}, \"status\": \"Accepted\"}"
+			returnConfirmation "${msgid}" "{\"currentTime\": \"$(datetime)\", \"interval\": ${heartbeatInterval}, \"status\": \"Accepted\"}"
 			;;
 		"StatusNotification")
 			writelog "Status" "Handling StatusNotification"
 			# Always respond with empty payload
-			returnResult "${msgid}" "{}"
+			returnConfirmation "${msgid}" "{}"
 			;;
 		"Heartbeat")
 			writelog "Status" "Handling Heartbeat"
 			# Always respond with timestamp
-			returnResult "${msgid}" "{\"currentTime\": \"$(datetime)\"}"
+			returnConfirmation "${msgid}" "{\"currentTime\": \"$(datetime)\"}"
 			;;
 		"Authorize")
 			writelog "Status" "Handling Authorize"
 			# Accept or reject with result from early-auth
-			returnResult "${msgid}" "{\"idTagInfo\": {\"status\": \"$authresult\"}}"
+			returnConfirmation "${msgid}" "{\"idTagInfo\": {\"status\": \"$authresult\"}}"
 			;;
 		"StartTransaction")
 			writelog "Status" "Handling StartTransaction"
@@ -210,7 +211,7 @@ do
 			tid="$(transIdFromIdIndexAndMeterStart "${idindex}" "${meterstart}")"
 			writelog "Status" "Transaction ID: ${tid}"
 			# Accept or reject with result from early-auth, return transaction ID
-			returnResult "${msgid}" "{\"idTagInfo\": {\"status\": \"${authresult}\"}, \"transactionId\": ${tid}}"
+			returnConfirmation "${msgid}" "{\"idTagInfo\": {\"status\": \"${authresult}\"}, \"transactionId\": ${tid}}"
 			;;
 		"StopTransaction")
 			writelog "Status" "Handling StopTransaction"
@@ -219,7 +220,7 @@ do
 			meterstop="$(jq -r '.meterStop' <<< "${payload}")"
 			timestamp="$(jq -r '.timestamp' <<< "${payload}")"
 			tid="$(jq -r '.transactionId' <<< "${payload}")"
-			returnResult "${msgid}" "{}"
+			returnConfirmation "${msgid}" "{}"
 			accountingdata="$(consumptionFromTransId "${tid}" "$(( meterstop / 1000 ))")"
 			writelog "Accounting" "${accountingdata}"
 			# Todo: Persist and report
@@ -231,8 +232,8 @@ do
 			writelog "Accounting" "Written to $(readlink -f "${monthdir}/${accountfile}")"
 			;;
 		"none")
-			writelog "Status" "Saving confirmation from charger in $(readlink -f "${respfile}")"
-			jq . <<< "${payload}" > "${respfile}"
+			writelog "Status" "Saving confirmation from charger in $(readlink -f "${confirmationfile}")"
+			jq . <<< "${payload}" > "${confirmationfile}"
 			;;
 		*)
 			writelog "Unknown:" "${call}"

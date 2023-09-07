@@ -12,12 +12,15 @@ function errorexit() {
 }
 trap errorexit ERR
 
-cmdfile="${me_dir}/../run/cmd.json"
-cmdlock="${me_dir}/../run/cmdlock"
-respfile="${me_dir}/../run/resp.json"
+requestfile="${me_dir}/../run/request.json"
+requestlock="${me_dir}/../run/reqlock"
+confirmationfile="${me_dir}/../run/confirmation.json"
+[[ -e "${confirmationfile}" ]] || touch "${confirmationfile}"
 pidfile="${me_dir}/../run/shocpp.pid"
 
-# Canned commands to be called from CGI
+exec {lockfd}<>"${requestlock}"
+flock -w 5 "${lockfd}"
+# Canned requests to be called from CGI
 case "${1}" in
 	'2d7628d355dfdb57f89b4847480801c1')
 		# Soft Reset
@@ -35,9 +38,9 @@ case "${1}" in
 		exit 1
 		;;
 esac
-if kill -USR1 "$(cat "${pidfile}")" && inotifywait -t 5 -e close "${respfile}" >/dev/null
+if kill -USR1 "$(cat "${pidfile}")" && inotifywait -t 5 -e close "${confirmationfile}" >/dev/null
 then
-	jq -r .status < "${respfile}"
+	jq -r .status < "${confirmationfile}"
 else
 	echo "OCPP unreachable"
 	exit 1
