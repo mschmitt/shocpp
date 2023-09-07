@@ -22,6 +22,13 @@ Testing: Daily use backed up by the charger's built-in RFID counters.
 - Allow charging initiated by the service (*RemoteStartTransaction* call to the charger with an (RF)ID tag to be assumed as presented).
 - Keep track of power consumption on a per-account basis. (RF)ID tags are assigned to accounts.
 
+## Architecture
+
+- *shocpp-backend* implements the entire logic and communicates via stdin/stdout, as known from inetd/xinetd/cgi-bin.
+- *shocpp-listener* wraps *shocpp-backend* behind *websocketd*.
+- *shocpp-command* passes payloads to *shocpp-backend*, to be sent to the charger.
+- *shocpp-caller* is essentially similar to *shocpp-command*, but I use this in a webserver/cgi-bin scenario to invoke hard-coded "canned calls" with random IDs from Siri shortcuts. 
+
 ## Limitations
 
 - No authentication of charger, but can be added on a reverse proxy level.
@@ -30,12 +37,11 @@ Testing: Daily use backed up by the charger's built-in RFID counters.
 - Known obstacles to operation with more than one charger:
   - *shocpp-command* has no facility to route a command to a specific charger/shocpp process.
 
-## Architecture
+## Requirements
 
-- *shocpp-backend* implements the entire logic and communicates via stdin/stdout, as known from inetd/xinetd/cgi-bin.
-- *shocpp-listener* wraps *shocpp-backend* behind *websocketd*.
-- *shocpp-command* passes payloads to *shocpp-backend*, to be sent to the charger.
-- *shocpp-caller* is essentially similar to *shocpp-command*, but I use this in a webserver/cgi-bin scenario to invoke hard-coded "canned calls" with random IDs from Siri shortcuts. 
+- Scripts are written in **Bash**, tested in Version > 5.1 only.
+- **websocketd** - for the networking side.
+- **jq** - for all JSON operations.
 
 ## Configuration
 
@@ -80,11 +86,24 @@ Testing: Daily use backed up by the charger's built-in RFID counters.
 ]
 ```
 
-## Requirements
+## *shocpp-command*
 
-- Scripts are written in **Bash**, tested in Version > 5.1 only.
-- **websocketd** - for the networking side.
-- **jq** - for all JSON operations.
+Synopsis:
+
+```shell
+shocpp-command <Call> <JSON Payload (the "inner" JSON) for call>
+```
+
+Examples:
+
+```shell
+bin/shocpp-command RemoteStartTransaction '{"idTag":"00000000"}'
+bin/shocpp-command TriggerMessage '{"requestedMessage": "StatusNotification"}'
+bin/shocpp-command Reset '{"type":"Soft"}'`
+bin/shocpp-command Reset '{"type":"Hard"}'`
+```
+
+*shocpp-command* saves the requested command to *run/cmd.json* and signals *SIGUSR1* to the running *shocpp-backend*. *shocpp-backend* traps *USR1* and interrupts all work to send the contents of *run/cmd.json* to the charger. Meanwhile, shocpp-command waits for *run/resp.json* to change and delivers it back as its own output.
 
 ## Implemented OCPP calls
 
@@ -92,7 +111,7 @@ Testing: Daily use backed up by the charger's built-in RFID counters.
 
 Incoming calls are handled by the main *while read* loop in *shocpp-backend* as they arrive on stdin.
 
-- **BootNotification** - *status* is always *Accepted*, contains the *currentTime* and *heartbeat* interval.
+- **BootNotification** - Response *status* is always *Accepted*, contains the *currentTime* and *heartbeat* interval.
 - **StatusNotification** - Response always is an empty payload field.
 - **Heartbeat** - Response contains the *currentTime* field.
 - **Authorize** - The main loop extracts the *idTag* field early on, and the response to *Authorize* sends that result in the *status* field.
@@ -139,26 +158,17 @@ $ jq . accounting/2023/09/1693727530-0326fd891def.json
 }
 ```
 
-## *shocpp-command*
+## Future TODOs
 
-Synopsis:
+- Implement more functionality:
+  - Power level, phase switching and overall solar integration, should be easy to implement through *shocpp-command*.
+- Command routing in *shocpp-command*:
+  - Add identification of charger (serial number) to *shocpp-command* invocation, signal all processes, have the command sent by the process that is in contact with the given charger. 
+  - Note that the serial number is never actively transmitted after *BootNotification* and will have to be enumerated or kept as state.
 
-```shell
-shocpp-command <Call> <JSON Payload (the "inner" JSON) for call>
-```
+## Notes
 
-Examples:
-
-```shell
-bin/shocpp-command RemoteStartTransaction '{"idTag":"00000000"}'
-bin/shocpp-command TriggerMessage '{"requestedMessage": "StatusNotification"}'
-bin/shocpp-command Reset '{"type":"Soft"}'`
-bin/shocpp-command Reset '{"type":"Hard"}'`
-```
-
-*shocpp-command* saves the requested command to *run/cmd.json* and signals *SIGUSR1* to the running *shocpp-backend*. *shocpp-backend* traps *USR1* and interrupts all work to send the contents of *run/cmd.json* to the charger. Meanwhile, shocpp-command waits for *run/resp.json* to change and delivers it back as its own output.
-
-## HOWTO sniff OCPP traffic
+### HOWTO sniff OCPP traffic
 
 Sourced from: https://osqa-ask.wireshark.org/questions/60725/how-to-dump-websockets-live-with-tshark/
 
@@ -166,15 +176,7 @@ Sourced from: https://osqa-ask.wireshark.org/questions/60725/how-to-dump-websock
 tshark -p -i any -s0 -f 'port 8080' -Y websocket.payload -E occurrence=l -T fields -e ip.src -e ip.dst -e text
 ```
 
-## Future TODOs
-
-- Implement more functionality:
-  - Power level and phase switching, solar integration.
-- Command routing in *shocpp-command*:
-  - Add identification of charger (serial number) to *shocpp-command* invocation, signal all processes, have the command sent by the process that is in contact with the given charger. 
-  - Note that the serial is never actively transmitted after *BootNotification* and will have to be enumerated or kept as state.
-
-## OCPP observations on go-eCharger Gemini
+### OCPP observations on go-eCharger Gemini
 
 - OCPP compliance
   - *TriggerMessage* call for *MeterValues* supported since FW 055.7 Beta.
