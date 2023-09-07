@@ -4,7 +4,7 @@ A rudimentary implementation of OCPP, the Open Charge Point Protocol, Version 1.
 
 ## Status
 
-Testing: Daily use backed up by the charger's built-in RFID counters.
+Completed to scope.
 
 ## Motivation
 
