@@ -18,15 +18,15 @@ Testing: Daily use backed up by the charger's built-in RFID counters.
 
 ## Scope
 
-- Allow charging initiated by (RF)ID tag presentation (Active *Authorize/StartTransaction* calls from the charger).
-- Allow charging initiated by the service (*RemoteStartTransaction* call to the charger with an (RF)ID tag to be assumed as presented).
+- Allow charging initiated by (RF)ID tag presentation (Active *Authorize/StartTransaction* requests from the charger).
+- Allow charging initiated by the service (*RemoteStartTransaction* request to the charger with an (RF)ID tag to be assumed as presented).
 - Keep track of power consumption on a per-account basis. (RF)ID tags are assigned to accounts.
 
 ## Architecture
 
 - *shocpp-backend* implements the entire logic and communicates via stdin/stdout, as known from inetd/xinetd/cgi-bin.
 - *shocpp-listener* wraps *shocpp-backend* behind *websocketd*.
-- *shocpp-command* passes payloads to *shocpp-backend*, to be sent to the charger.
+- *shocpp-command* passes calls and payloads to *shocpp-backend*, to be sent as requests to the charger.
 - *shocpp-caller* is essentially similar to *shocpp-command*, but I use this in a webserver/cgi-bin scenario to invoke hard-coded "canned calls" with random IDs from Siri shortcuts. 
 
 ## Limitations
@@ -35,7 +35,7 @@ Testing: Daily use backed up by the charger's built-in RFID counters.
 - No encryption, but can be added on a reverse proxy level.
 - No tracking of charging duration. Would need to save service-side state for that.
 - Known obstacles to operation with more than one charger:
-  - *shocpp-command* has no facility to route a command to a specific charger/shocpp process.
+  - *shocpp-command* has no facility to route a request to a specific charger/shocpp process.
 
 ## Requirements
 
@@ -91,7 +91,7 @@ Testing: Daily use backed up by the charger's built-in RFID counters.
 Synopsis:
 
 ```shell
-shocpp-command <Call> <JSON Payload (the "inner" JSON) for call>
+shocpp-command <Call> <JSON Payload (the "inner" JSON) for request>
 ```
 
 Examples:
@@ -103,24 +103,24 @@ bin/shocpp-command Reset '{"type":"Soft"}'`
 bin/shocpp-command Reset '{"type":"Hard"}'`
 ```
 
-*shocpp-command* saves the requested command to *run/cmd.json* and signals *SIGUSR1* to the running *shocpp-backend*. *shocpp-backend* traps *USR1* and interrupts all work to send the contents of *run/cmd.json* to the charger. Meanwhile, shocpp-command waits for *run/resp.json* to change and delivers it back as its own output.
+*shocpp-command* saves the complete request to *run/cmd.json* and signals *SIGUSR1* to the running *shocpp-backend*. *shocpp-backend* traps *USR1* and interrupts all work to send the contents of *run/cmd.json* as a request to the charger. The confirmation from the charger is saved to *run/resp.json*. Meanwhile, *shocpp-command* waits for *run/resp.json* to change and delivers it back as its own output.
 
-## Implemented OCPP calls
+## Implemented OCPP requests/calls
 
 ### Incoming
 
-Incoming calls are handled by the main *while read* loop in *shocpp-backend* as they arrive on stdin.
+Incoming requests are handled by the main *while read* loop in *shocpp-backend* as they arrive on stdin.
 
-- **BootNotification** - Response *status* is always *Accepted*, contains the *currentTime* and *heartbeat* interval.
-- **StatusNotification** - Response always is an empty payload field.
-- **Heartbeat** - Response contains the *currentTime* field.
-- **Authorize** - The main loop extracts the *idTag* field early on, and the response to *Authorize* sends that result in the *status* field.
-- **StartTransaction** - *StartTransaction* returns the same authorization *status* field as with *Authorize*, and also a *transactionId*, generated according to the model described below.
-- **StopTransaction** - disassembles the *transactionID* and determines account and consumption.
+- **BootNotification** - Confirmation *status* is always *Accepted*, contains the *currentTime* and *heartbeat* interval.
+- **StatusNotification** - Confirmation always contains an empty payload field.
+- **Heartbeat** - Confirmation contains the *currentTime* field.
+- **Authorize** - The main loop extracts the *idTag* field early on, and the confirmation to *Authorize* sends that result in the *status* field.
+- **StartTransaction** - The confirmation to *StartTransaction* returns the same authorization *status* field as with *Authorize*, and also a *transactionId*, generated according to the model described below.
+- **StopTransaction** - On receipt of the *StopTransaction* Request, *shocpp-backend* disassembls the *transactionID* and determines account and consumption.
 
 ### Outgoing
 
-- The script generates no outgoing calls at this time, other than those handed to it via *shocpp-command*.
+- The script generates no outgoing requests at this time, other than those handed to it via *shocpp-command*.
 
 ## Transaction ID model
 
@@ -128,7 +128,7 @@ Incoming calls are handled by the main *while read* loop in *shocpp-backend* as 
 
 - *Rumor has it* that transaction IDs are signed Int32, so max transaction ID is *2.147.483.647*.
 - The account ID from *tags.json* for a given (RF)ID tag is multiplied x 10000000. The Wh meter reading at start is converted to kWh and added to it. This number is the Transaction ID.
-- On end of transaction, the transaction ID transmitted by the charger is disassembled back into account ID and meter reading at start, based on which the consumption is calculated.
+- On end of transaction, the transaction ID transmitted by the charger in the *StopTransaction* request is disassembled back into account ID and meter reading at start, based on which the consumption is calculated.
 - By this calculation, 
   - shocpp can serve up to 214 accounts, and infinite™ (RF)ID tags, and
   - at a meter reading of 10 GWh, the world comes to an end.
@@ -163,8 +163,8 @@ $ jq . accounting/2023/09/1693727530-0326fd891def.json
 - Implement more functionality:
   - Power level, phase switching and overall solar integration, should be easy to implement through *shocpp-command*.
 - Command routing in *shocpp-command*:
-  - Add identification of charger (serial number) to *shocpp-command* invocation, signal all processes, have the command sent by the process that is in contact with the given charger. 
-  - Note that the serial number is never actively transmitted after *BootNotification* and will have to be enumerated or kept as state.
+  - Add identification of charger (serial number) to *shocpp-command* invocation, signal all processes, have the request sent by the process that is in contact with the given charger. 
+  - Note that the serial number is never actively transmitted after *BootNotification* and will have to be enumerated (how?) or kept as state.
 
 ## Notes
 
@@ -179,14 +179,14 @@ tshark -p -i any -s0 -f 'port 8080' -Y websocket.payload -E occurrence=l -T fiel
 ### OCPP observations on go-eCharger Gemini
 
 - OCPP compliance
-  - *TriggerMessage* call for *MeterValues* supported since FW 055.7 Beta.
+  - *TriggerMessage* request for *MeterValues* supported since FW 055.7 Beta.
 - Locally known RFID tags
   - 055.5: Sends locally known RFID tags to OCPP for authorization. Once authorized, consumption is reported to OCPP (*StartTransaction/StopTransaction*) and also added to the local RFID slot. The consumption after *RemoteStartTransaction* for the same RFID tag's ID is also added to the RFID slot.
   - 055.7 BETA: Accepts locally known RFID tags without any OCPP interaction, but adds consumption to the next free (unassigned) RFID configuration slot. Seems erratic. Github Issue: https://github.com/goecharger/go-eCharger-API-v2/issues/176
 - Reconnect and reboot behaviour
-  - If the charger reconnects after loss of the websocket connection, it checks back in with a *BootNotification*.
-  - If the charger ends a transaction while the websocket connection is not available, it submits *StopTransaction* after reconnecting.
-  - If the charger ends a transaction and reboots while the websocket connection is not available, and the websocket only becomes available after complete reboot, it submits *StopTransaction* after reconnecting.
+  - If the charger reconnects after loss of the websocket connection, it checks back in with a *BootNotification* request.
+  - If the charger ends a transaction while the websocket connection is not available, it submits the *StopTransaction* request after reconnecting.
+  - If the charger ends a transaction and reboots while the websocket connection is not available, and the websocket only becomes available after complete reboot, it submits the *StopTransaction* request after reconnecting.
   - More test cases? Seems solid so far.
 
 ## Further reading
