@@ -28,6 +28,7 @@ Testing: Daily use backed up by the charger's built-in RFID counters.
 - *shocpp-listener* wraps *shocpp-backend* behind *websocketd*.
 - *shocpp-command* passes calls and payloads to *shocpp-backend*, to be sent as requests to the charger.
 - *shocpp-caller* is essentially similar to *shocpp-command*, but I use this in a webserver/cgi-bin scenario to invoke hard-coded "canned calls" with random IDs from Siri shortcuts. 
+- *shocpp-summary* sums up all transactions (german language, sorry) from the discrete accounting records saved by *shocpp-backend*.
 
 ## Limitations
 
@@ -156,6 +157,12 @@ $ jq . accounting/2023/09/1693727530-0326fd891def.json
   "end_kwh": "9075",
   "consumed_kwh": "33"
 }
+```
+
+All records can be summed up using *shocpp-summary* (german language only), e.g. on the first day of a month:
+
+```shell
+$ bin/shocpp-summary $(date -d '1 week ago' '+%Y') $(date -d '1 week ago' '+%m')
 ```
 
 ## Future TODOs

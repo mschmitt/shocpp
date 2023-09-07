@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+set -o errexit
+
+me_path="$(readlink -f "$0")"
+me_dir="$(dirname "${me_path}")"
+me_base="$(basename "${me_path}")"
+
+function errorexit() {
+	trap - ERR
+	printf "Error on line %s\n" "$(caller)"
+	exit 1
+}
+trap errorexit ERR
+
+# Directory with accounting information
+accountingdir="${SHOCPP_ACCOUNTDINGDIR:-${me_dir}/../accounting}"
+
+cd "${accountingdir}/${1}/${2}"
+
+declare -A accountdata
+total=0
+fulljson="$(jq -n [])"
+shopt -s nullglob
+for i in *.json
+do
+	account="$(jq -r .account < "${i}")"
+	consumed_kwh="$(jq -r .consumed_kwh < "${i}")"
+	if [[ -v accountdata[${account}] ]]
+	then
+		accountdata[${account}]=$(( accountdata[${account}] + consumed_kwh ))
+	else
+		accountdata[${account}]=${consumed_kwh}
+	fi
+	if [[ consumed_kwh -ne 0 ]]
+	then
+		fulljson="$(jq '. += $i' --slurpfile i "${i}" <<< "${fulljson}")"
+		total=$(( total + consumed_kwh))
+	fi
+done
+
+cat <<Here | tee abrechnung.txt
+Abrechnung für Jahr/Monat: ${1}/${2}
+
+Here
+
+for key in "${!accountdata[@]}"
+do
+	printf "Mandant: %-30s %4s kWh\n" "$key" "${accountdata["$key"]}" | tee -a abrechnung.txt
+done
+printf "Gesamt : %35s kWh\n" "${total}" | tee -a abrechnung.txt
+
+cat <<Here | tee -a abrechnung.txt
+
+Abrechnungsdatensätze:
+
+Here
+
+jq . <<<"${fulljson}" | tee -a abrechnung.txt
