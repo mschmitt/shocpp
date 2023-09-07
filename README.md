@@ -100,8 +100,8 @@ Examples:
 ```shell
 bin/shocpp-command RemoteStartTransaction '{"idTag":"00000000"}'
 bin/shocpp-command TriggerMessage '{"requestedMessage": "StatusNotification"}'
-bin/shocpp-command Reset '{"type":"Soft"}'`
-bin/shocpp-command Reset '{"type":"Hard"}'`
+bin/shocpp-command Reset '{"type":"Soft"}'
+bin/shocpp-command Reset '{"type":"Hard"}'
 ```
 
 *shocpp-command* saves the complete request to *run/cmd.json* and signals *SIGUSR1* to the running *shocpp-backend*. *shocpp-backend* traps *USR1* and interrupts all work to send the contents of *run/cmd.json* as a request to the charger. The confirmation from the charger is saved to *run/resp.json*. Meanwhile, *shocpp-command* waits for *run/resp.json* to change and delivers it back as its own output.
