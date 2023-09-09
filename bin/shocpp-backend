@@ -12,7 +12,7 @@ heartbeatInterval=55
 tagsfile="${SHOCPP_TAGSFILE:-${me_dir}/../conf/tags.json}"
 
 # Directory where accounting information will be written
-accountingdir="${SHOCPP_ACCOUNTDINGDIR:-${me_dir}/../accounting}"
+accountingdir="${SHOCPP_ACCOUNTINGDIR:-${me_dir}/../accounting}"
 [[ -d "${accountingdir}" ]] || mkdir -p "${accountingdir}"
 
 # Misc paths and dirs
@@ -137,6 +137,7 @@ done
 [[ -v depsmissing ]] && exit
 
 writelog "Status" "Connection from ${REMOTE_ADDR}, process id is ${$}."
+writelog "Status" "Will write accounting records below ${accountingdir}."
 tagsfile="$(readlink -f "${tagsfile}")"
 if jq -e . < "${tagsfile}" >/dev/null 2>&1
 then

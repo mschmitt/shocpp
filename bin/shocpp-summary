@@ -13,9 +13,10 @@ function errorexit() {
 trap errorexit ERR
 
 # Directory with accounting information
-accountingdir="${SHOCPP_ACCOUNTDINGDIR:-${me_dir}/../accounting}"
+accountingdir="${SHOCPP_ACCOUNTINGDIR:-${me_dir}/../accounting}"
 
 cd "${accountingdir}/${1}/${2}"
+printf -v accountingfile "00_abrechnung_%s_%s.txt" "${1}" "${2}"
 
 declare -A accountdata
 total=0
@@ -38,21 +39,21 @@ do
 	fi
 done
 
-cat <<Here | tee abrechnung.txt
+cat <<Here | tee "${accountingfile}"
 Abrechnung für Jahr/Monat: ${1}/${2}
 
 Here
 
 for key in "${!accountdata[@]}"
 do
-	printf "Mandant: %-30s %4s kWh\n" "$key" "${accountdata["$key"]}" | tee -a abrechnung.txt
+	printf "Mandant: %-30s %4s kWh\n" "$key" "${accountdata["$key"]}" | tee -a "${accountingfile}"
 done
-printf "Gesamt : %35s kWh\n" "${total}" | tee -a abrechnung.txt
+printf "Gesamt : %35s kWh\n" "${total}" | tee -a "${accountingfile}"
 
-cat <<Here | tee -a abrechnung.txt
+cat <<Here | tee -a "${accountingfile}"
 
 Abrechnungsdatensätze:
 
 Here
 
-jq . <<<"${fulljson}" | tee -a abrechnung.txt
+jq . <<<"${fulljson}" | tee -a "${accountingfile}"
