@@ -100,6 +100,9 @@ Examples:
 ```shell
 bin/shocpp-command RemoteStartTransaction '{"idTag":"00000000"}'
 bin/shocpp-command TriggerMessage '{"requestedMessage": "StatusNotification"}'
+bin/shocpp-command TriggerMessage '{"requestedMessage": "BootNotification"}'
+bin/shocpp-command GetConfiguration '{}'
+bin/shocpp-command ChangeConfiguration '{"key": "AllowOfflineTxForUnknownId", "value": true}'
 bin/shocpp-command Reset '{"type":"Soft"}'
 bin/shocpp-command Reset '{"type":"Hard"}'
 ```
