@@ -203,6 +203,27 @@ The format of the outer OCPP payload is outlined in the occp-j specification PDF
   - If the charger ends a transaction and reboots while the websocket connection is not available, and the websocket only becomes available after complete reboot, it submits the *StopTransaction* request after reconnecting.
   - More test cases? Seems solid so far.
 
+### Typical charging session
+
+1. Connect car
+1. Charger to service: *StatusNotification*, *status*: SuspendedEVSE
+1. (Service to charger: *RemoteStartTransaction*, *idTag*: 1234abcd)
+1. Charger to service: *StartTransaction, idTag*: 1234abcd, *meterStart*: xxx
+   - response from service: *StartTransaction, status*: Accepted, *transactionID*: aaa
+
+1. Charger to service: *StatusNotification*, *status*: SuspendedEV
+1. Charger to service: *StatusNotification*, Charging
+1. Car charges
+1. Charger to service: *StatusNotification*, *status*: SuspendedEV (car may decide to resume charging)
+1. Unplug car
+1. Charger to service: *StatusNotification*, *status*: Available
+1. Charger to service: *StopTransaction*, *transactionID*: aaa, *meterStop*: yyy
+1. Service: Find *meterStart* for *transactionID*, calculate energy consumption
+
+### Glossary
+
+* EVSE: Electric Vehicle Supply Equipment
+
 ## Further reading
 
 - The OCPP specification: https://www.openchargealliance.org/downloads/
