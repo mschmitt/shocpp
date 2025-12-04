@@ -38,6 +38,13 @@ Completed to scope.
 - Known obstacles to operation with more than one charger:
   - *shocpp-command* has no facility to route a request to a specific charger/shocpp process.
 
+## Compatibility
+
+- Tested on go-eCharger Gemini **only**.
+- Verified working with Firmware 59.4:
+  - Authentication set to "Cloud Authentication"
+  - no local RFID tags configured
+
 ## Requirements
 
 - Scripts are written in **Bash**, tested in Version > 5.1 only.
@@ -120,7 +127,8 @@ Incoming requests are handled by the main *while read* loop in *shocpp-backend* 
 - **Heartbeat** - Confirmation contains the *currentTime* field.
 - **Authorize** - The main loop extracts the *idTag* field early on, and the confirmation to *Authorize* sends that result in the *status* field.
 - **StartTransaction** - The confirmation to *StartTransaction* returns the same authorization *status* field as with *Authorize*, and also a *transactionId*, generated according to the model described below.
-- **StopTransaction** - On receipt of the *StopTransaction* Request, *shocpp-backend* disassembls the *transactionID* and determines account and consumption.
+- **StopTransaction** - On receipt of the *StopTransaction* Request, *shocpp-backend* disassembles the *transactionID* and determines account and consumption.
+- **MeterValues** - JSON object saved directly to *run/meter.json*, consumed by shocpp-caller.
 
 ### Outgoing
 
@@ -188,7 +196,7 @@ tshark -p -i any -s0 -f 'port 8080' -Y websocket.payload -E occurrence=l -T fiel
 
 ### Websocket message format
 
-The format of the outer OCPP payload is outlined in the occp-j specification PDF.
+The format of the outer OCPP payload is outlined in the ocpp-j specification PDF.
 
 ### OCPP observations on go-eCharger Gemini
 
@@ -197,6 +205,7 @@ The format of the outer OCPP payload is outlined in the occp-j specification PDF
 - Locally known RFID tags
   - 055.5: Sends locally known RFID tags to OCPP for authorization. Once authorized, consumption is reported to OCPP (*StartTransaction/StopTransaction*) and also added to the local RFID slot. The consumption after *RemoteStartTransaction* for the same RFID tag's ID is also added to the RFID slot.
   - 055.7 BETA: Accepts locally known RFID tags without any OCPP interaction, but adds consumption to the next free (unassigned) RFID configuration slot. Seems erratic. Github Issue: https://github.com/goecharger/go-eCharger-API-v2/issues/176
+  - 59.4: Seems to be in line with 055.5 again. I no longer use local RFID.
 - Reconnect and reboot behaviour
   - If the charger reconnects after loss of the websocket connection, it checks back in with a *BootNotification* request.
   - If the charger ends a transaction while the websocket connection is not available, it submits the *StopTransaction* request after reconnecting.

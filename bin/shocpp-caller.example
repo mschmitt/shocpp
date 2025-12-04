@@ -26,6 +26,10 @@ case "${1}" in
 		# Soft Reset
 		printf "[2,\"%s\",\"%s\",%s]\n" "${RANDOM}" 'Reset' '{"type":"Soft"}' > "${cmdfile}"
 		;;
+	'a56dc7ae3e4300943efcf7ffb3aaaced')
+		# Request status notification
+		printf "[2,\"%s\",\"%s\",%s]\n" "${RANDOM}" 'TriggerMessage' '{"requestedMessage": "StatusNotification"}' > "${requestfile}"
+		;;
 	'14800483fcf9cf036c3a3c718262e4d4')
 		# RemoteStartTransaction with (RF)ID tag 1111
 		printf "[2,\"%s\",\"%s\",%s]\n" "${RANDOM}" 'RemoteStartTransaction' '{"idTag":"1111"}' > "${cmdfile}"
@@ -33,6 +37,11 @@ case "${1}" in
 	'8fc8791d68a5362b61b83fddd1141d74')
 		# RemoteStartTransaction with (RF)ID tag 2222
 		printf "[2,\"%s\",\"%s\",%s]\n" "${RANDOM}" 'RemoteStartTransaction' '{"idTag":"2222"}' > "${cmdfile}"
+		;;
+	'aaa91d827cffe958aa06356608194e22')
+		# Don't interact with shocpp, read directly from $meterfile
+		printf "%s Watt\n" "$(jq -r '.meterValue[0].sampledValue | map(select(.measurand == "Power.Active.Import" and .phase == null) | .value)[0]' < "${meterfile}")"
+		exit 0
 		;;
 	*)
 		exit 1
