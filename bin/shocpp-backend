@@ -22,6 +22,7 @@ rundir="${me_dir}/../run"
 [[ -d "${rundir}" ]] || mkdir -p "${rundir}"
 requestfile="${rundir}/request.json"
 confirmationfile="${rundir}/confirmation.json"
+meterfile="${rundir}/meter.json"
 writelock="${rundir}/writelock"
 touch "${writelock}"
 pidfile="${rundir}/shocpp.pid"
@@ -232,12 +233,18 @@ do
 			echo "${accountingdata}" > "${monthdir}/${accountfile}"
 			writelog "Accounting" "Written to $(readlink -f "${monthdir}/${accountfile}")"
 			;;
+		"MeterValues")
+			writelog "Status" "Handling MeterValues, saving in $(readlink -f "${meterfile}")"
+			jq . <<< "${payload}" > "${meterfile}"
+			# Always respond with timestamp
+			returnConfirmation "${msgid}" "{\"currentTime\": \"$(datetime)\"}"
+			;;
 		"none")
 			writelog "Status" "Saving confirmation from charger in $(readlink -f "${confirmationfile}")"
 			jq . <<< "${payload}" > "${confirmationfile}"
 			;;
 		*)
-			writelog "Unknown:" "${call}"
+			writelog "Unknown" "${call}"
 			;;
 	esac
 done
