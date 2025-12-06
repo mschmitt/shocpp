@@ -42,8 +42,8 @@ Completed to scope.
 
 - Tested on go-eCharger Gemini **only**.
 - Verified working with Firmware 59.4:
-  - Authentication set to "Cloud Authentication"
-  - no local RFID tags configured
+  - Authentication set to "Authentication required"
+  - Local RFID tags need to be configured in order to be usable
 
 ## Requirements
 
